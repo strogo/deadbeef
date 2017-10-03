@@ -1,0 +1,17 @@
+/** @mainpage
+
+@section overview Overview
+DeaDBeeF is a music player for *nix-like systems and OS X. It supports many different music formats like mp3, ogg vorbis, flac and many more. It includes GTK2/GTK3 GUI and cocoa-ui for osx. Deadbeef is strongly dependent on its plugins; everything from decoder to gui is a plugin. There are also 3rd party plugins which you can install.
+
+@section start_here Start here
+_To be done..._
+- deadbeef.h Deadbeef API<br>
+Detailed documentation for writing own plugin
+
+
+@section resources Useful Resurces
+- <a href="http://www.deadbeef.sourceforge.net/">Deadbeef website (SourceForge)</a>
+- <a href="https://www.github.com/DeaDBeeF-Player/deadbeef">Deadbeef GitHub repository</a>
+- <a href="https://www.github.com/DeaDBeeF-Player/deadbeef/wiki">Deadbeef wiki on GitHub</a>
+
+*/
