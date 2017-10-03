@@ -26,7 +26,10 @@
 
 #include "deadbeef.h"
 #include "playlist.h"
-
+/** @defgroup streamreader
+ *
+ */
+///@{
 typedef struct streamblock_s {
     struct streamblock_s *next;
     char *buf;
@@ -77,5 +80,6 @@ streamreader_reset (void);
 // Number of blocks in the queue
 int
 streamreader_num_blocks_ready (void);
+///@}
 
 #endif /* streamreader_h */

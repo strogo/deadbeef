@@ -26,7 +26,10 @@
 */
 #ifndef __VOLUME_H
 #define __VOLUME_H
-
+/** @defgroup volume
+ *
+ */
+///@{
 void
 volume_set_db (float dB);
 
@@ -53,5 +56,5 @@ audio_set_mute (int mute);
 
 int
 audio_is_mute (void);
-
+///@}
 #endif // __VOLUME_H

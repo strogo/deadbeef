@@ -44,6 +44,10 @@ enum {
     STR_EV_ORDER_CHANGED, // tell the streamer that playback order has changed, p1=old, p2=new
 };
 
+/** @defgroup streamer
+ *
+ */
+///@{
 int
 streamer_init (void);
 
@@ -178,5 +182,6 @@ streamer_set_buffering_track (playItem_t *it);
 // force streamer to flush its msg queue
 void
 streamer_yield (void);
+///@}
 
 #endif // __STREAMER_H

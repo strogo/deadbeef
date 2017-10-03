@@ -32,6 +32,11 @@
 #include <time.h>
 #include "deadbeef.h"
 
+/** @defgroup playlist
+ *
+ */
+///@{
+
 #define PL_MAX_ITERATORS 2
 
 // predefined properties stored in metadata for storage unification:
@@ -590,4 +595,5 @@ pl_item_set_startsample (playItem_t *it, int64_t sample);
 void
 pl_item_set_endsample (playItem_t *it, int64_t sample);
 
+///@}
 #endif // __PLAYLIST_H

@@ -29,7 +29,10 @@
 #define __VFS_H
 
 #include "deadbeef.h"
-
+/** @defgroup vfs
+ *
+ */
+///@{
 DB_FILE* vfs_fopen (const char *fname);
 void vfs_set_track (DB_FILE *stream, DB_playItem_t *it);
 void vfs_fclose (DB_FILE *f);
@@ -40,5 +43,5 @@ void vfs_rewind (DB_FILE *stream);
 int64_t vfs_fgetlength (DB_FILE *stream);
 const char *vfs_get_content_type (DB_FILE *stream);
 void vfs_fabort (DB_FILE *stream);
-
+///@}
 #endif // __VFS_H

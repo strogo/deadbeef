@@ -28,7 +28,10 @@
 #define __HANDLER_H
 
 #include <stdint.h>
-
+/** @defgroup handler
+ *
+ */
+///@{
 struct handler_s *
 handler_alloc (int queue_size);
 
@@ -50,4 +53,5 @@ handler_wait (struct handler_s *h);
 int
 handler_hasmessages (struct handler_s *h);
 
+///@}
 #endif // __HANDLER_H

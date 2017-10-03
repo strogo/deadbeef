@@ -22,7 +22,10 @@
 */
 
 #include "deadbeef.h"
-
+/** @defgroup cueutil
+ *
+ */
+///@{
 // Load cuesheet, find the corresponding audiofiles, and add them as tracks into playlist, if they can be found.
 //
 // If namelist is not NULL (result of scandir), it helps to find the audio files in the cuesheet directory,
@@ -53,3 +56,4 @@ plt_load_cue_file (playlist_t *playlist, playItem_t *after, const char *fullname
 playItem_t *
 plt_load_cuesheet_from_buffer (playlist_t *playlist, playItem_t *after, const char *fname, playItem_t *embedded_origin, int64_t embedded_numsamples, int embedded_samplerate, const uint8_t *buffer, int buffersize, const char *dirname, struct dirent **namelist, int n);
 
+///@}

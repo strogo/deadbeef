@@ -20,8 +20,12 @@
      misrepresented as being the original software.
   3. This notice may not be removed or altered from any source distribution.
 */
-
-
+/** @defgroup deadbeef
+ *
+ * DeaDBeeF API
+ *
+ */
+///@{
 #ifndef __DEADBEEF_H
 #define __DEADBEEF_H
 
@@ -2006,5 +2010,5 @@ typedef struct DB_playlist_s {
 #ifdef __cplusplus
 }
 #endif
-
+///@}
 #endif // __DEADBEEF_H

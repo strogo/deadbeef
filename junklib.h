@@ -27,6 +27,10 @@
 #include <stdio.h>
 #include "deadbeef.h"
 
+/** @defgroup junklib
+ *
+ */
+///@{
 struct playItem_s;
 
 extern const char *ddb_internal_rg_keys[];
@@ -133,4 +137,5 @@ junk_enable_cp936_detection (int enable);
 const char *
 junk_detect_charset_len (const char *s, int len);
 
+///@}
 #endif // __JUNKLIB_H
