@@ -242,8 +242,8 @@ enum {
     DDB_TAG_MASK = 0x000fff00
 };
 
-// playlist item
-// these are "public" fields, available to plugins
+/// playlist item
+/// these are "public" fields, available to plugins
 typedef struct DB_playItem_s {
     int32_t startsample32; // start sample of track, or -1 for auto
     int32_t endsample32; // end sample of track, or -1 for auto
@@ -302,7 +302,7 @@ typedef struct DB_apev2_tag_s {
     DB_apev2_frame_t *frames;
 } DB_apev2_tag_t;
 
-// plugin types
+/// plugin types
 enum {
     DB_PLUGIN_DECODER = 1,
     DB_PLUGIN_OUTPUT  = 2,
@@ -313,14 +313,14 @@ enum {
     DB_PLUGIN_GUI = 7,
 };
 
-// output plugin states
+/// output plugin states
 enum output_state_t {
     OUTPUT_STATE_STOPPED = 0,
     OUTPUT_STATE_PLAYING = 1,
     OUTPUT_STATE_PAUSED = 2,
 };
 
-// playback order
+/// playback order
 enum playback_order_t {
     PLAYBACK_ORDER_LINEAR = 0,
     PLAYBACK_ORDER_SHUFFLE_TRACKS = 1,
@@ -328,7 +328,7 @@ enum playback_order_t {
     PLAYBACK_ORDER_SHUFFLE_ALBUMS = 3,
 };
 
-// playback modes
+/// playback modes
 enum playback_mode_t {
     PLAYBACK_MODE_LOOP_ALL = 0, // loop playlist
     PLAYBACK_MODE_NOLOOP = 1, // don't loop
@@ -336,7 +336,7 @@ enum playback_mode_t {
 };
 
 #if (DDB_API_LEVEL >= 8)
-// playlist change info, used in the DB_EV_PLAYLISTCHANGED p1 argument
+/// playlist change info, used in the DB_EV_PLAYLISTCHANGED p1 argument
 enum ddb_playlist_change_t {
     DDB_PLAYLIST_CHANGE_CONTENT, // this is the most generic one, will work for the cases when p1 was omitted (0)
     DDB_PLAYLIST_CHANGE_CREATED,
@@ -386,10 +386,10 @@ typedef struct DB_conf_item_s {
     struct DB_conf_item_s *next;
 } DB_conf_item_t;
 
-// event callback type
+/// event callback type
 typedef int (*DB_callback_t)(ddb_event_t *, uintptr_t data);
 
-// events
+/// events
 enum {
     DB_EV_NEXT = 1, // switch to next track
     DB_EV_PREV = 2, // switch to prev track
@@ -457,7 +457,7 @@ enum {
     DB_EV_MAX
 };
 
-// preset columns, working using IDs
+/// preset columns, working using IDs
 // DON'T add new ids in range 2-7, they are reserved for backwards compatibility
 enum pl_column_t {
     DB_COLUMN_STANDARD = -1,
@@ -503,7 +503,7 @@ typedef struct {
 } ddb_replaygain_settings_t;
 #endif
 
-// sort order constants
+/// sort order constants
 enum ddb_sort_order_t {
     DDB_SORT_DESCENDING,
     DDB_SORT_ASCENDING,
@@ -528,12 +528,12 @@ enum ddb_sys_directory_t {
 #define DB_EVENT(x) ((ddb_event_t *)(x))
 #define DB_PLAYITEM(x) ((DB_playItem_t *)(x))
 
-// FILE object wrapper for vfs access
+/// FILE object wrapper for vfs access
 typedef struct {
     struct DB_vfs_s *vfs;
 } DB_FILE;
 
-// md5 calc control structure (see md5/md5.h)
+/// md5 calc control structure (see md5/md5.h)
 typedef struct DB_md5_s {
     char data[88];
 } DB_md5_t;
@@ -598,7 +598,7 @@ typedef struct ddb_file_found_data_s {
 } ddb_file_found_data_t;
 #endif
 
-// context for title formatting interpreter
+/// context for title formatting interpreter
 typedef struct {
     int _size; // must be set to sizeof(tf_context_t)
     uint32_t flags; // DDB_TF_CONTEXT_ flags
@@ -655,25 +655,44 @@ enum {
 // forward decl for plugin struct
 struct DB_plugin_s;
 
-// player api definition
+/// player api definition
 typedef struct {
-    // versioning
+    /**
+     * @name version
+     */
+    ///@{
+    /// major version
     int vmajor;
+    /// minor version
     int vminor;
+    ///@}
 
-    // md5sum calc
+    /**
+     * @name md5
+     */
+    ///@{
+    /// md5sum calculation
     void (*md5) (uint8_t sig[16], const char *in, int len);
     void (*md5_to_str) (char *str, const uint8_t sig[16]);
     void (*md5_init)(DB_md5_t *s);
     void (*md5_append)(DB_md5_t *s, const uint8_t *data, int nbytes);
     void (*md5_finish)(DB_md5_t *s, uint8_t digest[16]);
+    ///@}
 
+    /**
+     * @name playback control
+     */
+    ///@{
     // playback control
     struct DB_output_s* (*get_output) (void);
     float (*playback_get_pos) (void); // [0..100]
     void (*playback_set_pos) (float pos); // [0..100]
+    ///@}
 
-    // streamer access
+    /**
+     * @name streamer access
+     */
+    ///@{
     DB_playItem_t *(*streamer_get_playing_track) (void);
     DB_playItem_t *(*streamer_get_streaming_track) (void);
     float (*streamer_get_playpos) (void);
@@ -687,20 +706,33 @@ typedef struct {
     struct ddb_dsp_context_s * (*streamer_get_dsp_chain) (void);
     void (*streamer_set_dsp_chain) (struct ddb_dsp_context_s *chain);
     void (*streamer_dsp_refresh) (void); // call after changing parameters
+    ///@}
 
-    // system folders
-    // normally functions will return standard folders derived from --prefix
-    // portable version will return pathes specified in comments below
+    /**
+     * @name system folders
+     * normally functions will return standard folders derived from --prefix
+     * portable version will return paths specified in comments below
+     */
+    ///@{
     const char *(*get_config_dir) (void) DEPRECATED_18; // installdir/config | $XDG_CONFIG_HOME/.config/deadbeef
     const char *(*get_prefix) (void) DEPRECATED_18; // installdir | PREFIX
     const char *(*get_doc_dir) (void) DEPRECATED_18; // installdir/doc | DOCDIR
     const char *(*get_plugin_dir) (void) DEPRECATED_18; // installdir/plugins | LIBDIR/deadbeef
     const char *(*get_pixmap_dir) (void) DEPRECATED_18; // installdir/pixmaps | PREFIX "/share/deadbeef/pixmaps"
+    ///@}
 
+    /**
+     * @name process control
+     */
+    ///@{
     // process control
     void (*quit) (void);
+    ///@}
 
-    // threading
+    /**
+     * @name threading
+     */
+    ///@{
     intptr_t (*thread_start) (void (*fn)(void *ctx), void *ctx);
     intptr_t (*thread_start_low_priority) (void (*fn)(void *ctx), void *ctx);
     int (*thread_join) (intptr_t tid);
@@ -716,46 +748,50 @@ typedef struct {
     int (*cond_wait) (uintptr_t cond, uintptr_t mutex);
     int (*cond_signal) (uintptr_t cond);
     int (*cond_broadcast) (uintptr_t cond);
+    ///@}
 
-    /////// playlist management //////
+    /**
+     * @name playlist management
+     */
+    ///@{
     void (*plt_ref) (ddb_playlist_t *plt);
     void (*plt_unref) (ddb_playlist_t *plt);
 
-    // total number of playlists
+    /// total number of playlists
     int (*plt_get_count) (void);
 
-    // 1st item in playlist nr. 'plt'
+    /// 1st item in playlist nr. 'plt'
     DB_playItem_t * (*plt_get_head) (int plt);
 
-    // nr. of selected items in playlist nr. 'plt'
+    /// nr. of selected items in playlist nr. 'plt'
     int (*plt_get_sel_count) (int plt);
 
-    // add new playlist into position before nr. 'before', with title='title'
-    // returns index of new playlist
+    /// add new playlist into position before nr. 'before', with title='title'
+    /// returns index of new playlist
     int (*plt_add) (int before, const char *title);
 
-    // remove playlist nr. plt
+    /// remove playlist nr. plt
     void (*plt_remove) (int plt);
 
-    // clear playlist
+    /// clear playlist
     void (*plt_clear) (ddb_playlist_t *plt);
     void (*pl_clear) (void);
 
-    // set current playlist
+    /// set current playlist
     void (*plt_set_curr) (ddb_playlist_t *plt);
     void (*plt_set_curr_idx) (int plt);
 
-    // get current playlist
+    /// get current playlist
     // note: caller is responsible to call plt_unref after using pointer
     // returned by plt_get_curr
     ddb_playlist_t *(*plt_get_curr) (void);
     int (*plt_get_curr_idx) (void);
 
-    // move playlist nr. 'from' into position before nr. 'before', where
-    // before=-1 means last position
+    /// move playlist nr. 'from' into position before nr. 'before', where
+    /// before=-1 means last position
     void (*plt_move) (int from, int before);
 
-    // playlist saving and loading
+    /// playlist saving and loading
     DB_playItem_t * (*plt_load) (ddb_playlist_t *plt, DB_playItem_t *after, const char *fname, int *pabort, int (*cb)(DB_playItem_t *it, void *data), void *user_data) DEPRECATED_15;
     int (*plt_save) (ddb_playlist_t *plt, DB_playItem_t *first, DB_playItem_t *last, const char *fname, int *pabort, int (*cb)(DB_playItem_t *it, void *data), void *user_data);
 
@@ -763,57 +799,66 @@ typedef struct {
     int (*plt_get_title) (ddb_playlist_t *plt, char *buffer, int bufsize);
     int (*plt_set_title) (ddb_playlist_t *plt, const char *title);
 
-    // increments modification index
+    /// increments modification index
     void (*plt_modified) (ddb_playlist_t *handle);
 
-    // returns modication index
-    // the index is incremented by 1 every time playlist changes
+    /// returns modication index
+    /// the index is incremented by 1 every time playlist changes
     int (*plt_get_modification_idx) (ddb_playlist_t *handle);
 
-    // return index of an item in specified playlist, or -1 if not found
+    /// return index of an item in specified playlist, or -1 if not found
     int (*plt_get_item_idx) (ddb_playlist_t *plt, DB_playItem_t *it, int iter);
 
-    // playlist metadata
-    // this kind of metadata is stored in playlist (dbpl) files
-    // that is, this is the properties of playlist itself,
-    // not of the tracks in the playlist.
-    // for example, playlist tab color can be stored there, etc
+    ///@}
+    /**
+     * @name playlist metadata
+     * this kind of metadata is stored in playlist (dbpl) files
+     * that is, this is the properties of playlist itself,
+     * not of the tracks in the playlist.
+     * for example, playlist tab color can be stored there, etc
+     */
+    ///@{
 
-    // add meta if it doesn't exist yet
+    /// add meta if it doesn't exist yet
     void (*plt_add_meta) (ddb_playlist_t *handle, const char *key, const char *value);
 
-    // replace (or add) existing meta
+    /// replace (or add) existing meta
     void (*plt_replace_meta) (ddb_playlist_t *handle, const char *key, const char *value);
 
-    // append meta to existing one, or add if doesn't exist
+    /// append meta to existing one, or add if doesn't exist
     void (*plt_append_meta) (ddb_playlist_t *handle, const char *key, const char *value);
 
-    // set integer meta (works same as replace)
+    /// set integer meta (works same as replace)
     void (*plt_set_meta_int) (ddb_playlist_t *handle, const char *key, int value);
 
-    // set float meta (works same as replace)
+    /// set float meta (works same as replace)
     void (*plt_set_meta_float) (ddb_playlist_t *handle, const char *key, float value);
 
-    // plt_find_meta must always be used in the pl_lock/unlock block
+    /// plt_find_meta must always be used in the pl_lock/unlock block
     const char *(*plt_find_meta) (ddb_playlist_t *handle, const char *key);
 
-    // returns head of metadata linked list, for direct access
-    // remember pl_lock/unlock
+    /// returns head of metadata linked list, for direct access
+    /// remember pl_lock/unlock
     DB_metaInfo_t * (*plt_get_metadata_head) (ddb_playlist_t *handle);
 
-    // delete meta item from list
+    /// delete meta item from list
     void (*plt_delete_metadata) (ddb_playlist_t *handle, DB_metaInfo_t *meta);
 
-    // returns integer value of requested meta, def is the default value if not found
+    /// returns integer value of requested meta, def is the default value if not found
     int (*plt_find_meta_int) (ddb_playlist_t *handle, const char *key, int def);
 
-    // returns float value of requested meta, def is the default value if not found
+    /// returns float value of requested meta, def is the default value if not found
     float (*plt_find_meta_float) (ddb_playlist_t *handle, const char *key, float def);
 
-    // delete all metadata
+    /// delete all metadata
     void (*plt_delete_all_meta) (ddb_playlist_t *handle);
 
-    // operating on playlist items
+    ///@}
+
+    /**
+     * @name playlist items
+     */
+    ///@{
     DB_playItem_t * (*plt_insert_item) (ddb_playlist_t *playlist, DB_playItem_t *after, DB_playItem_t *it);
     DB_playItem_t * (*plt_insert_file) (ddb_playlist_t *playlist, DB_playItem_t *after, const char *fname, int *pabort, int (*cb)(DB_playItem_t *it, void *data), void *user_data) DEPRECATED_15;
     DB_playItem_t *(*plt_insert_dir) (ddb_playlist_t *plt, DB_playItem_t *after, const char *dirname, int *pabort, int (*cb)(DB_playItem_t *it, void *data), void *user_data) DEPRECATED_15;
@@ -834,38 +879,38 @@ typedef struct {
     void (*plt_copy_items) (ddb_playlist_t *to, int iter, ddb_playlist_t * from, DB_playItem_t *before, uint32_t *indices, int cnt);
     void (*plt_search_reset) (ddb_playlist_t *plt);
 
-    // find the specified text in playlist, and select the results
+    /// find the specified text in playlist, and select the results
     void (*plt_search_process) (ddb_playlist_t *plt, const char *text);
 
-    // sort using the title formatting v1 (deprecated)
+    /// sort using the title formatting v1 (deprecated)
     void (*plt_sort) (ddb_playlist_t *plt, int iter, int id, const char *format, int order) DEPRECATED_18;
 
-    // add files and folders to current playlist
+    /// add files and folders to current playlist
     int (*plt_add_file) (ddb_playlist_t *plt, const char *fname, int (*cb)(DB_playItem_t *it, void *data), void *user_data) DEPRECATED_15;
     int (*plt_add_dir) (ddb_playlist_t *plt, const char *dirname, int (*cb)(DB_playItem_t *it, void *data), void *user_data) DEPRECATED_15;
 
-    // cuesheet support
+    /// cuesheet support
     DB_playItem_t *(*plt_insert_cue_from_buffer) (ddb_playlist_t *plt, DB_playItem_t *after, DB_playItem_t *origin, const uint8_t *buffer, int buffersize, int numsamples, int samplerate) DEPRECATED_110;
     DB_playItem_t * (*plt_insert_cue) (ddb_playlist_t *plt, DB_playItem_t *after, DB_playItem_t *origin, int numsamples, int samplerate) DEPRECATED_110;
 
-    // playlist locking
+    /// playlist locking
     void (*pl_lock) (void);
     void (*pl_unlock) (void);
 
-    // playlist tracks access
+    /// playlist tracks access
     DB_playItem_t * (*pl_item_alloc) (void);
     DB_playItem_t * (*pl_item_alloc_init) (const char *fname, const char *decoder_id);
     void (*pl_item_ref) (DB_playItem_t *it);
     void (*pl_item_unref) (DB_playItem_t *it);
     void (*pl_item_copy) (DB_playItem_t *out, DB_playItem_t *in);
 
-    // request lock for adding files to playlist
+    /// request lock for adding files to playlist
     // this function may return -1 if it is not possible to add files right now.
     // caller must cancel operation in this case,
     // or wait until previous operation finishes
     int (*pl_add_files_begin) (ddb_playlist_t *plt) DEPRECATED_15;
 
-    // release the lock for adding files to playlist
+    /// release the lock for adding files to playlist
     // end must be called when add files operation is finished
     void (*pl_add_files_end) (void) DEPRECATED_15;
 
@@ -874,66 +919,69 @@ typedef struct {
 
     // --- the following functions work with current playlist ---
 
-    // get index of the track in MAIN
+    /// get index of the track in MAIN
     int (*pl_get_idx_of) (DB_playItem_t *it);
 
-    // get index of the track in MAIN or SEARCH
+    /// get index of the track in MAIN or SEARCH
     int (*pl_get_idx_of_iter) (DB_playItem_t *it, int iter);
 
-    // get track for index in MAIN
+    /// get track for index in MAIN
     DB_playItem_t * (*pl_get_for_idx) (int idx);
 
-    // get track for index in MAIN or SEARCH
+    /// get track for index in MAIN or SEARCH
     DB_playItem_t * (*pl_get_for_idx_and_iter) (int idx, int iter);
 
-    // get total play time of all tracks in MAIN
+    /// get total play time of all tracks in MAIN
     float (*pl_get_totaltime) (void);
 
-    // get number of tracks in MAIN or SEARCH
+    /// get number of tracks in MAIN or SEARCH
     int (*pl_getcount) (int iter);
 
-    // delete selected tracks
+    /// delete selected tracks
     int (*pl_delete_selected) (void);
 
-    // set cursor position in MAIN or SEARCH
+    /// set cursor position in MAIN or SEARCH
     void (*pl_set_cursor) (int iter, int cursor);
 
-    // get cursor position in MAIN
+    /// get cursor position in MAIN
     int (*pl_get_cursor) (int iter);
 
-    // remove all except selected tracks
+    /// remove all except selected tracks
     void (*pl_crop_selected) (void);
 
-    // get number of selected tracks
+    /// get number of selected tracks
     int (*pl_getselcount) (void);
 
-    // get first track in MAIN or SEARCH
+    /// get first track in MAIN or SEARCH
     DB_playItem_t *(*pl_get_first) (int iter);
 
-    // get last track in MAIN or SEARCH
+    /// get last track in MAIN or SEARCH
     DB_playItem_t *(*pl_get_last) (int iter);
+    ///@}
+    /**
+     * @name playlist misc
+     */
+    ///@{
 
-    // --- misc functions ---
-
-    // mark the track as selected or unselected (1 or 0 respectively)
+    /// mark the track as selected or unselected (1 or 0 respectively)
     void (*pl_set_selected) (DB_playItem_t *it, int sel);
 
-    // test whether the track is selected
+    /// test whether the track is selected
     int (*pl_is_selected) (DB_playItem_t *it);
 
-    // save current playlist
+    /// save current playlist
     int (*pl_save_current) (void);
 
-    // save all playlists
+    /// save all playlists
     int (*pl_save_all) (void);
 
-    // select all tracks in current playlist
+    /// select all tracks in current playlist
     void (*pl_select_all) (void);
 
-    // get next track
+    /// get next track
     DB_playItem_t *(*pl_get_next) (DB_playItem_t *it, int iter);
 
-    // get previous track
+    /// get previous track
     DB_playItem_t *(*pl_get_prev) (DB_playItem_t *it, int iter);
 
     /*
@@ -964,29 +1012,38 @@ typedef struct {
     */
     int (*pl_format_title) (DB_playItem_t *it, int idx, char *s, int size, int id, const char *fmt) DEPRECATED_18;
 
-    // _escaped version wraps all conversions with '' and replaces every ' in conversions with \'
+    /// _escaped version wraps all conversions with '' and replaces every ' in conversions with \'
     int (*pl_format_title_escaped) (DB_playItem_t *it, int idx, char *s, int size, int id, const char *fmt) DEPRECATED_18;
 
-    // format duration 't' (fractional seconds) into string, for display in playlist
+    /// format duration 't' (fractional seconds) into string, for display in playlist
     void (*pl_format_time) (float t, char *dur, int size);
 
-    // find which playlist the specified item belongs to, returns NULL if none
+    /// find which playlist the specified item belongs to, returns NULL if none
     ddb_playlist_t * (*pl_get_playlist) (DB_playItem_t *it);
 
-    // direct access to metadata structures
-    // not thread-safe, make sure to wrap with pl_lock/pl_unlock
+    /// direct access to metadata structures
+    ///
+    /// not thread-safe, make sure to wrap with pl_lock/pl_unlock
     DB_metaInfo_t * (*pl_get_metadata_head) (DB_playItem_t *it); // returns head of metadata linked list
     void (*pl_delete_metadata) (DB_playItem_t *it, DB_metaInfo_t *meta);
 
-    // high-level access to metadata
+    ///@}
+    /**
+     * @name high-level access to metadata
+     */
+    ///@{
     void (*pl_add_meta) (DB_playItem_t *it, const char *key, const char *value);
     void (*pl_append_meta) (DB_playItem_t *it, const char *key, const char *value);
     void (*pl_set_meta_int) (DB_playItem_t *it, const char *key, int value);
     void (*pl_set_meta_float) (DB_playItem_t *it, const char *key, float value);
     void (*pl_delete_meta) (DB_playItem_t *it, const char *key);
 
-    // this function is not thread-safe
-    // make sure to wrap it with pl_lock/pl_unlock block
+    ///@}
+
+    ///
+    /// this function is not thread-safe
+    /// make sure to wrap it with pl_lock/pl_unlock block
+    ///
     const char *(*pl_find_meta) (DB_playItem_t *it, const char *key);
 
     // following functions are thread-safe
@@ -1009,14 +1066,21 @@ typedef struct {
     void (*pl_playqueue_remove) (DB_playItem_t *it) DEPRECATED_18;
     int (*pl_playqueue_test) (DB_playItem_t *it) DEPRECATED_18;
 
-    // volume control
+    /**
+     * @name volume control
+     */
+    ///@{
     void (*volume_set_db) (float dB);
     float (*volume_get_db) (void);
     void (*volume_set_amp) (float amp);
     float (*volume_get_amp) (void);
     float (*volume_get_min_db) (void);
+    ///@}
 
-    // junk reading/writing
+    /**
+     * @name junk reading/writing
+     */
+    ///@{
     int (*junk_id3v1_read) (DB_playItem_t *it, DB_FILE *fp);
     int (*junk_id3v1_find) (DB_FILE *fp);
     int (*junk_id3v1_write) (FILE *fp, DB_playItem_t *it, const char *enc);
@@ -1046,8 +1110,11 @@ typedef struct {
     int (*junk_recode) (const char *in, int inlen, char *out, int outlen, const char *cs);
     int (*junk_iconv) (const char *in, int inlen, char *out, int outlen, const char *cs_in, const char *cs_out);
     int (*junk_rewrite_tags) (DB_playItem_t *it, uint32_t flags, int id3v2_version, const char *id3v1_encoding);
-
-    // vfs
+    ///@}
+    /**
+     * @name vfs
+     */
+    ///@{
     DB_FILE* (*fopen) (const char *fname);
     void (*fclose) (DB_FILE *f);
     size_t (*fread) (void *ptr, size_t size, size_t nmemb, DB_FILE *stream);
@@ -1058,6 +1125,7 @@ typedef struct {
     const char *(*fget_content_type) (DB_FILE *stream);
     void (*fset_track) (DB_FILE *stream, DB_playItem_t *it);
     void (*fabort) (DB_FILE *stream);
+    ///@}
 
     // message passing
     int (*sendmessage) (uint32_t id, uintptr_t ctx, uint32_t p1, uint32_t p2);
@@ -1067,15 +1135,13 @@ typedef struct {
     void (*event_free) (ddb_event_t *ev);
     int (*event_send) (ddb_event_t *ev, uint32_t p1, uint32_t p2);
 
-    // configuration access
-    //
-    // conf_get_str_fast is not thread-safe, and
-    // must only be used from within conf_lock/conf_unlock block
-    // it should be preferred for fast non-blocking lookups
-    //
-    // all the other config access functions are thread safe
+    /**
+     * @name configuration access
+     */
+    ///@{
     void (*conf_lock) (void);
     void (*conf_unlock) (void);
+    /// not thread-safe, must be used from within conf_lock/conf_unlock block
     const char * (*conf_get_str_fast) (const char *key, const char *def);
     void (*conf_get_str) (const char *key, const char *def, char *buffer, int buffer_size);
     float (*conf_get_float) (const char *key, float def);
@@ -1089,7 +1155,12 @@ typedef struct {
     void (*conf_remove_items) (const char *key);
     int (*conf_save) (void);
 
-    // plugin communication
+    ///@}
+
+    /**
+     * @name plugin communication
+     */
+    ///@{
     struct DB_decoder_s **(*plug_get_decoder_list) (void);
     struct DB_vfs_s **(*plug_get_vfs_list) (void);
     struct DB_output_s **(*plug_get_output_list) (void);
@@ -1270,7 +1341,10 @@ typedef struct {
     // sort using title formatting v2
     void (*plt_sort_v2) (ddb_playlist_t *plt, int iter, int id, const char *format, int order);
 
-    // playqueue APIs
+    /**
+     * @name playqueue
+     */
+    ///@{
     int (*playqueue_push) (DB_playItem_t *it);
     void (*playqueue_pop) (void);
     void (*playqueue_remove) (DB_playItem_t *it);
@@ -1280,6 +1354,7 @@ typedef struct {
     DB_playItem_t *(*playqueue_get_item) (int n);
     int (*playqueue_remove_nth) (int n);
     void (*playqueue_insert_at) (int n, DB_playItem_t *it);
+    ///@}
 
     // system directory API, returns path by id from ddb_sys_directory_t enum
     const char *(*get_system_dir) (int dir_id);
@@ -1313,17 +1388,29 @@ typedef struct {
     DB_metaInfo_t * (*pl_meta_for_key) (DB_playItem_t *it, const char *key);
 
     ////////////  Logging  ///////////
-
-    // The recommended usage in plugins:
-    // #define trace(...) { deadbeef->log_detailed (&plugin.plugin, 0, __VA_ARGS__); }
-    // Then use trace () as you would use printf
-    // The user would be able to enable/disable logging in your plugin via the standard UI features.
-    // Remember to set plugin.api_vminor = 10 or higher
-
-    // Low level log function, where plugin and level can be specified.
-    // Plugin defines the scope, so logging can be toggled per plugin
-    // Layers is a combination of bits, which define the priority/visibility of the message.
-    // See DDB_LOG_LAYER_* for details
+    /**
+     * @name logging
+     *
+     * The recommended usage in plugins:
+     *
+     * #define trace(...) { deadbeef->log_detailed (&plugin.plugin, 0, __VA_ARGS__); }
+     *
+     * Then use trace () as you would use printf
+     *
+     * The user would be able to enable/disable logging in your plugin via the standard UI features.
+     *
+     * Remember to set plugin.api_vminor = 10 or higher
+     *
+     *
+     * Low level log function, where plugin and level can be specified.
+     *
+     * Plugin defines the scope, so logging can be toggled per plugin
+     *
+     * Layers is a combination of bits, which define the priority/visibility of the message.
+     *
+     * See DDB_LOG_LAYER_* for details
+     */
+    ///@{
     void (*log_detailed) (struct DB_plugin_s *plugin, uint32_t layers, const char *fmt, ...);
 
     // Same as log_detailed but uses va_list
@@ -1339,9 +1426,12 @@ typedef struct {
     // Custom log viewers, for use in e.g. UI plugins
     void (*log_viewer_register) (void (*callback)(struct DB_plugin_s *plugin, uint32_t layers, const char *text, void *ctx), void *ctx);
     void (*log_viewer_unregister) (void (*callback)(struct DB_plugin_s *plugin, uint32_t layers, const char *text, void *ctx), void *ctx);
-
+    ///@}
     ///////// File add filtering ///////
-
+    /**
+     * @name File add filtering
+     */
+    ///@{
     // It works by calling the filter right after a file or folder was found, but before it's open / processed
     // Then if the filter returns a negative value -- the file/folder will be skipped
     // It's designed to work with plt_insert_dir and plt_insert_file.
@@ -1354,9 +1444,12 @@ typedef struct {
 
     // Unregisters the filter by ID, returned by register_file_filter
     void (*unregister_fileadd_filter) (int id);
-
+    ///@}
     ////// MetaCache APIs available from 1.10+ //////
-
+    /**
+     * @name MetaCache
+     */
+    ///@{
     // Returns an existing NULL-terminated string, or NULL if it doesn't exist
     const char * (*metacache_get_string) (const char *str);
 
@@ -1369,8 +1462,12 @@ typedef struct {
     // Removes an existing value of specified size, ignoring refcount
     void (*metacache_remove_value) (const char *value, size_t valuesize);
 
+    ///@}
     ////// ReplayGain APIs available from 1.10+ //////
-
+    /**
+     * @name ReplayGain
+     */
+    ///@{
     // Apply replaygain according to the current settings.
     // NOTE: This only works for the current streaming_track,
     // as the current settings are controlled by the streamer.
@@ -1388,7 +1485,11 @@ typedef struct {
     // player configuration, and the supplied track.
     // After initializing the settings, pass the pointer to replaygain_apply_with_settings
     void (*replaygain_init_settings) (ddb_replaygain_settings_t *settings, DB_playItem_t *it);
-
+    ///@}
+    /**
+     * @name Sort APIs
+     */
+    ///@{
     ////// Sort APIs available from 1.10+ //////
 
     // Sort a plain array of tracks, according to specified title formatting v2 script and column id.
@@ -1398,7 +1499,11 @@ typedef struct {
     // `format` is title formatting v2 script;
     // `order` can be one of DDB_SORT_ASCENDING or DDB_SORT_DESCENDING (no random).
     void (*sort_track_array) (ddb_playlist_t *playlist, DB_playItem_t **tracks, int num_tracks, const char *format, int order);
-
+    ///@}
+    /**
+     * @name pl_item
+     */
+    ///@{
     // initialize playitem, same as plt_add_file, except do not add to any playlist
     DB_playItem_t *(*pl_item_init) (const char *fname);
 
@@ -1409,7 +1514,7 @@ typedef struct {
     void (*pl_item_set_startsample) (DB_playItem_t *it, int64_t sample);
 
     void (*pl_item_set_endsample) (DB_playItem_t *it, int64_t sample);
-
+    ///@}
     // get total playback time of selected tracks
     float (*plt_get_selection_playback_time) (ddb_playlist_t *plt);
 #endif
@@ -1501,17 +1606,20 @@ enum {
 };
 #endif
 
-// base plugin interface
+/// base plugin interface
 typedef struct DB_plugin_s {
-    // type must be one of DB_PLUGIN_ types
+    /// type must be one of DB_PLUGIN_ types
     int32_t type;
-    // api version
+    /// api major version
     int16_t api_vmajor;
+    /// api minor version
     int16_t api_vminor;
-    // plugin version
+    /// plugin major version
     int16_t version_major;
+    /// plugin minor version
     int16_t version_minor;
 
+    /// plugin flags
     uint32_t flags; // DDB_PLUGIN_FLAG_*
     uint32_t reserved1;
     uint32_t reserved2;
@@ -1519,57 +1627,79 @@ typedef struct DB_plugin_s {
 
     // any of those can be left NULL
     // though it's much better to fill them with something useful
-    const char *id; // id used for serialization and runtime binding
-    const char *name; // short name
-    const char *descr; // short description (what the plugin is doing)
-    const char *copyright; // copyright notice(s), list of developers, links to original works, etc
-    const char *website; // plugin website
+    /// id used for serialization and runtime binding
+    const char *id;
+    /// short name
+    const char *name;
+    /// short description (what the plugin is doing)
+    const char *descr;
+    /// copyright notice(s), list of developers, links to original works, etc
+    const char *copyright;
+    /// plugin website
+    const char *website;
 
-    // plugin-specific command interface; can be NULL
+    /// plugin-specific command interface; can be NULL
     int (*command) (int cmd, ...);
 
-    // start is called to start plugin; can be NULL
+    /// start is called to start plugin; can be NULL
     int (*start) (void);
 
-    // stop is called to deinit plugin; can be NULL
+    /// stop is called to deinit plugin; can be NULL
     int (*stop) (void);
 
-    // connect is called to setup connections between different plugins
-    // it is called after all plugin's start method was executed
-    // can be NULL
-    // NOTE for GUI plugin developers: don't initialize your widgets/windows in
-    // the connect method. look for up-to-date information on wiki:
-    // http://github.com/DeaDBeeF-Player/deadbeef/wiki/Porting-GUI-plugins-to-deadbeef-from-0.5.x-to-0.6.0
+    ///
+    /// connect is called to setup connections between different plugins
+    /// it is called after all plugin's start method was executed
+    ///
+    /// can be NULL
+    ///
+    /// NOTE for GUI plugin developers: don't initialize your widgets/windows in
+    /// the connect method. look for up-to-date information on wiki:
+    ///
+    /// http://github.com/DeaDBeeF-Player/deadbeef/wiki/Porting-GUI-plugins-to-deadbeef-from-0.5.x-to-0.6.0
+    ///
     int (*connect) (void);
 
-    // opposite of connect, will be called before stop, while all plugins are still
-    // in "started" state
+    ///
+    /// opposite of connect, will be called before stop, while all plugins are still
+    /// in "started" state
+    ///
     int (*disconnect) (void);
 
-    // exec_cmdline may be called at any moment when user sends commandline to player
-    // can be NULL if plugin doesn't support commandline processing
-    // cmdline is 0-separated list of strings, guaranteed to have 0 at the end
-    // cmdline_size is number of bytes pointed by cmdline
+    ///
+    /// exec_cmdline may be called at any moment when user sends commandline to player
+    ///
+    /// can be NULL if plugin doesn't support commandline processing
+    ///
+    /// cmdline is 0-separated list of strings, guaranteed to have 0 at the end
+    ///
+    /// cmdline_size is number of bytes pointed by cmdline
+    ///
     int (*exec_cmdline) (const char *cmdline, int cmdline_size);
 
-    // @returns linked list of actions for the specified track
-    // when it is NULL -- the plugin must return list of all actions
+    ///
+    /// @returns linked list of actions for the specified track
+    /// when it is NULL -- the plugin must return list of all actions
+    ///
     DB_plugin_action_t* (*get_actions) (DB_playItem_t *it);
 
-    // mainloop will call this function for every plugin
-    // so that plugins may handle all events;
-    // can be NULL
+    ///
+    /// mainloop will call this function for every plugin
+    /// so that plugins may handle all events;
+    /// can be NULL
+    ///
     int (*message) (uint32_t id, uintptr_t ctx, uint32_t p1, uint32_t p2);
 
-    // plugin configuration dialog is constructed from this data
-    // can be NULL
+    ///
+    /// plugin configuration dialog is constructed from this data
+    /// can be NULL
     const char *configdialog;
 } DB_plugin_t;
 
 // file format stuff
 
-// channel mask - combine following flags to tell streamer which channels are
-// present in input/output streams
+/// channel mask - combine following flags to tell streamer which channels are
+/// present in input/output streams
 enum {
     DDB_SPEAKER_FRONT_LEFT = 0x1,
     DDB_SPEAKER_FRONT_RIGHT = 0x2,
@@ -1624,7 +1754,7 @@ enum {
 #endif
 };
 
-// decoder plugin
+/// decoder plugin
 typedef struct DB_decoder_s {
     DB_plugin_t plugin;
 
@@ -1678,7 +1808,7 @@ typedef struct DB_decoder_s {
 #endif
 } DB_decoder_t;
 
-// output plugin
+/// output plugin
 typedef struct DB_output_s {
     DB_plugin_t plugin;
     // init is called once at plugin activation
@@ -1705,8 +1835,8 @@ typedef struct DB_output_s {
     int has_volume;
 } DB_output_t;
 
-// dsp plugin
-// see also: examples/dsp_template.c in git
+/// dsp plugin
+/// see also: examples/dsp_template.c in git
 #define DDB_INIT_DSP_CONTEXT(var,type,plug) {\
     memset(var,0,sizeof(type));\
     var->ctx.plugin=plug;\
@@ -1764,17 +1894,17 @@ typedef struct DB_dsp_s {
 #endif
 } DB_dsp_t;
 
-// misc plugin
-// purpose is to provide extra services
-// e.g. scrobbling, converting, tagging, custom gui, etc.
-// misc plugins should be mostly event driven, so no special entry points in them
+/// misc plugin
+/// purpose is to provide extra services
+/// e.g. scrobbling, converting, tagging, custom gui, etc.
+/// misc plugins should be mostly event driven, so no special entry points in them
 typedef struct {
     DB_plugin_t plugin;
 } DB_misc_t;
 
-// vfs plugin
-// provides means for reading, seeking, etc
-// api is based on stdio
+/// vfs plugin
+/// provides means for reading, seeking, etc
+/// api is based on stdio
 typedef struct DB_vfs_s {
     DB_plugin_t plugin;
 
@@ -1815,13 +1945,13 @@ typedef struct DB_vfs_s {
 #endif
 } DB_vfs_t;
 
-// gui plugin
-// only one gui plugin can be running at the same time
-// should provide GUI services to other plugins
+/// gui plugin
+/// only one gui plugin can be running at the same time
+/// should provide GUI services to other plugins
 
-// this structure represents a gui dialog with callbacks to set/get params
-// documentation should be available here:
-// http://github.com/DeaDBeeF-Player/deadbeef/wiki/GUI-Script-Syntax
+/// this structure represents a gui dialog with callbacks to set/get params
+/// documentation should be available here:
+/// http://github.com/DeaDBeeF-Player/deadbeef/wiki/GUI-Script-Syntax
 typedef struct {
     const char *title;
     const char *layout;
@@ -1851,7 +1981,7 @@ typedef struct DB_gui_s {
     int (*run_dialog) (ddb_dialog_t *dlg, uint32_t buttons, int (*callback)(int button, void *ctx), void *ctx);
 } DB_gui_t;
 
-// playlist plugin
+/// playlist plugin
 typedef struct DB_playlist_s {
     DB_plugin_t plugin;
 
