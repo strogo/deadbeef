@@ -355,6 +355,19 @@ project "portaudio"
 
    links { "portaudio " } -- space needed to avoid linking with itself, lol
 
+project "waveout"
+   kind "SharedLib"
+   language "C"
+   targetdir "bin/%{cfg.buildcfg}/plugins"
+   targetprefix ""
+
+   files {
+       "plugins/waveout/*.h",
+       "plugins/waveout/*.c",
+   }
+
+   links { "winmm", "ksuser" }
+
 project "ddb_gui_GTK2"
    kind "SharedLib"
    language "C"
