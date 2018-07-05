@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include "streamreader.h"
 #include "replaygain.h"
+#include "threading.h"
 
 // read ahead about 5 sec at 44100/16/2
 #define BLOCK_SIZE 16384
@@ -41,8 +42,14 @@ static int numblocks_ready;
 
 static int curr_block_bitrate;
 
+static playItem_t *_prev_rg_track;
+static int _rg_settingschanged = 1;
+static int _firstblock = 0;
+
 void
 streamreader_init (void) {
+    _prev_rg_track = NULL;
+    _rg_settingschanged = 1;
     for (int i = 0; i < BLOCK_COUNT; i++) {
         streamblock_t *b = calloc (1, sizeof (streamblock_t));
         b->pos = -1;
@@ -52,6 +59,7 @@ streamreader_init (void) {
     }
     block_next = blocks;
     numblocks_ready = 0;
+    _firstblock = 0;
 }
 
 void
@@ -65,6 +73,9 @@ streamreader_free (void) {
     }
     block_next = block_data = NULL;
     numblocks_ready = 0;
+    _prev_rg_track = NULL;
+    _rg_settingschanged = 1;
+    _firstblock = 0;
 }
 
 streamblock_t *
@@ -75,8 +86,13 @@ streamreader_get_next_block (void) {
     return block_next;
 }
 
+void
+streamreader_configchanged (void) {
+    _rg_settingschanged = 1;
+}
+
 int
-streamreader_read_block (streamblock_t *block, playItem_t *track, DB_fileinfo_t *fileinfo) {
+streamreader_read_block (streamblock_t *block, playItem_t *track, DB_fileinfo_t *fileinfo, uint64_t mutex) {
     // clip size to max possible, with current sample format
     int size = BLOCK_SIZE;
     int samplesize = fileinfo->fmt.channels * (fileinfo->fmt.bps>>3);
@@ -86,11 +102,14 @@ streamreader_read_block (streamblock_t *block, playItem_t *track, DB_fileinfo_t 
     }
 
     // replaygain settings
-
-    ddb_replaygain_settings_t rg_settings;
-    rg_settings._size = sizeof (rg_settings);
-    replaygain_init_settings (&rg_settings, track);
-    replaygain_set_current (&rg_settings);
+    if (_rg_settingschanged || _prev_rg_track != track) {
+        _prev_rg_track = track;
+        _rg_settingschanged = 0;
+        ddb_replaygain_settings_t rg_settings;
+        rg_settings._size = sizeof (rg_settings);
+        replaygain_init_settings (&rg_settings, track);
+        replaygain_set_current (&rg_settings);
+    }
 
     // NOTE: streamer_set_bitrate may be called during decoder->read, and set immediated bitrate of the block
     curr_block_bitrate = -1;
@@ -99,6 +118,8 @@ streamreader_read_block (streamblock_t *block, playItem_t *track, DB_fileinfo_t 
     if (rb < 0) {
         return -1;
     }
+
+    mutex_lock (mutex);
 
     block->bitrate = curr_block_bitrate;
 
@@ -113,8 +134,17 @@ streamreader_read_block (streamblock_t *block, playItem_t *track, DB_fileinfo_t 
         replaygain_apply (&fileinfo->fmt, block->buf, block->size);
     }
 
+    if (_firstblock) {
+        block->first = 1;
+        _firstblock = 0;
+    }
+    else {
+        block->first = 0;
+    }
+
     if (rb != size) {
         block->last = 1;
+        _firstblock = 1;
     }
     else {
         block->last = 0;
@@ -189,6 +219,7 @@ streamreader_reset (void) {
     block_next = blocks;
     block_data = NULL;
     numblocks_ready = 0;
+    _firstblock = 0;
 }
 
 int

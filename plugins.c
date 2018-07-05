@@ -492,6 +492,12 @@ static DB_functions_t deadbeef_api = {
     .pl_item_set_endsample = (void (*) (DB_playItem_t *it, int64_t sample))pl_item_set_endsample,
 
     .plt_get_selection_playback_time = (float (*) (ddb_playlist_t *plt))plt_get_selection_playback_time,
+
+    .junk_get_tail_size = junk_get_tail_size,
+    .junk_get_tag_offsets = junk_get_tag_offsets,
+
+    .plt_is_loading_cue = (int (*)(ddb_playlist_t *))plt_is_loading_cue,
+
 };
 
 DB_functions_t *deadbeef = &deadbeef_api;
@@ -802,7 +808,7 @@ load_plugin (const char *plugdir, char *d_name, int l) {
 
 static int
 load_gui_plugin (const char **plugdirs) {
-#if defined HAVE_COCOAUI
+#if defined HAVE_COCOAUI || defined HAVE_XGUI
     return 0;
 #endif
 
@@ -966,7 +972,10 @@ plug_load_all (void) {
 
     background_jobs_mutex = mutex_create ();
 
-    const char *dirname = deadbeef->get_plugin_dir ();
+    const char *dirname = plug_get_system_dir (DDB_SYS_DIR_PLUGIN);
+
+    // remember how many plugins to skip if called Nth time
+    plugin_t *prev_plugins_tail = plugins_tail;
 
 #ifdef OSX_APPBUNDLE
     char libpath[PATH_MAX];
@@ -1023,6 +1032,8 @@ plug_load_all (void) {
 #endif
 #endif
 
+#ifndef ANDROID
+// this filepath is always in the android.plugin_path config var
     int k = 0;
 #ifndef ANDROID
     // load gui plugin before others
@@ -1045,6 +1056,7 @@ plug_load_all (void) {
         }
         load_plugin_dir (plugdir, 0);
     }
+#endif
 
 #ifdef ANDROID
     char plugin_path[1000];
@@ -1065,7 +1077,7 @@ plug_load_all (void) {
 
         char path[PATH_MAX];
         snprintf (path, sizeof (path), "/data/data/%s/lib", p);
-        load_plugin_dir (path);
+        load_plugin_dir (path, 0);
         if (!e) {
             break;
         }
@@ -1080,14 +1092,6 @@ plug_load_all (void) {
 #define PLUG(n) plug_init_plugin (n##_load, NULL);
 #include "moduleconf.h"
 #undef PLUG
-#ifdef ANDROID
-#define PLUG(n) extern DB_plugin_t * n##_load (DB_functions_t *api);
-#include "moduleconf-android.h"
-#undef PLUG
-#define PLUG(n) plug_init_plugin (n##_load, NULL);
-#include "moduleconf-android.h"
-#undef PLUG
-#endif
 
     if (plugins_lowprio) {
         if (plugins_tail) {
@@ -1149,7 +1153,9 @@ plug_load_all (void) {
     }
     // start plugins
     plugin_t *prev = NULL;
-    for (plug = plugins; plug;) {
+    plugin_t *head = prev_plugins_tail ? prev_plugins_tail->next : plugins;
+    for (plug = head; plug;) {
+        trace ("starting plugin %s\n", plug->plugin->name);
         if (plug->plugin->type != DB_PLUGIN_GUI && plug->plugin->start) {
             if (plug->plugin->start () < 0) {
                 trace_err ("plugin %s failed to start, deactivated.\n", plug->plugin->name);
@@ -1185,7 +1191,7 @@ plug_load_all (void) {
 
     // select output plugin
 #ifndef XCTEST
-    if (plug_select_output () < 0) {
+    if (plug_reinit_sound () < 0) {
         trace ("failed to find output plugin!\n");
         return -1;
     }
@@ -1299,6 +1305,8 @@ plug_unload_all (void) {
 void
 plug_set_output (DB_output_t *out) {
     output_plugin = out;
+    conf_set_str ("output_plugin", output_plugin->plugin.name);
+    trace ("selected output plugin: %s\n", output_plugin->plugin.name);
 }
 
 void
@@ -1346,11 +1354,9 @@ plug_get_output (void) {
     return output_plugin;
 }
 
-int
-plug_select_output (void) {
-#ifdef ANDROID
-    return 0;
-#else
+static DB_output_t *
+_select_output_plugin (void) {
+#ifndef ANDROID
     char outplugname[100];
 #ifdef HAVE_COCOAUI
     conf_get_str ("output_plugin", "CoreAudio", outplugname, sizeof (outplugname));
@@ -1360,64 +1366,22 @@ plug_select_output (void) {
     for (int i = 0; g_output_plugins[i]; i++) {
         DB_output_t *p = g_output_plugins[i];
         if (!strcmp (p->plugin.name, outplugname)) {
-            trace ("selected output plugin: %s\n", outplugname);
-            output_plugin = p;
-            break;
+            return p;
         }
     }
-    if (!output_plugin) {
-        output_plugin = g_output_plugins[0];
-        if (output_plugin) {
-            trace ("selected output plugin: %s\n", output_plugin->plugin.name);
-            conf_set_str ("output_plugin", output_plugin->plugin.name);
-        }
-    }
-    if (!output_plugin) {
-        return -1;
-    }
-    messagepump_push (DB_EV_OUTPUTCHANGED, 0, 0, 0);
-    return 0;
 #endif
+    return g_output_plugins[0];
 }
 
-void
+int
 plug_reinit_sound (void) {
-    DB_output_t *prev = plug_get_output ();
-    int state = OUTPUT_STATE_STOPPED;
-
-    ddb_waveformat_t fmt = {0};
-    if (prev) {
-        state = prev->state ();
-        memcpy (&fmt, &prev->fmt, sizeof (ddb_waveformat_t));
-        prev->free ();
+    DB_output_t *new_out = _select_output_plugin ();
+    if (!new_out) {
+        return -1;
     }
 
-    if (plug_select_output () < 0) {
-        char outplugname[100];
-#ifdef HAVE_COCOAUI
-        conf_get_str ("output_plugin", "CoreAudio", outplugname, sizeof (outplugname));
-#else
-        conf_get_str ("output_plugin", "ALSA output plugin", outplugname, sizeof (outplugname));
-#endif
-        trace_err ("failed to select output plugin %s\nreverted to %s\n", outplugname, prev->plugin.name);
-        output_plugin = prev;
-    }
-    DB_output_t *output = plug_get_output ();
-    if (fmt.channels) {
-        output->setformat (&fmt);
-    }
-    if (output->init () < 0) {
-        streamer_reset (1);
-        streamer_set_nextsong (-1, 0);
-        return;
-    }
-
-    if (state != OUTPUT_STATE_PAUSED && state != OUTPUT_STATE_STOPPED) {
-        if (output->play () < 0) {
-            trace_err ("failed to reinit sound output\n");
-            streamer_set_nextsong (-1, 0);
-        }
-    }
+    streamer_set_output (new_out);
+    return 0;
 }
 
 // list of all unique decoder ids used in current session
@@ -1467,6 +1431,9 @@ plug_free_decoder_ids (void) {
 
 DB_decoder_t *
 plug_get_decoder_for_id (const char *id) {
+    if (!id) {
+        return NULL;
+    }
     DB_decoder_t **plugins = plug_get_decoder_list ();
     for (int c = 0; plugins[c]; c++) {
         if (!strcmp (id, plugins[c]->plugin.id)) {

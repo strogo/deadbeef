@@ -1,5 +1,5 @@
 workspace "deadbeef"
-   configurations { "Debug", "Release", "Debug32", "Release32" }
+   configurations { "debug", "release", "debug32", "release32" }
 
 
 defines {
@@ -8,23 +8,23 @@ defines {
     "HAVE_LOG2=1"
 }
 
-filter "configurations:Debug or Debug32"
+filter "configurations:debug or debug32"
   defines { "DEBUG" }
   symbols "On"
 
-filter "configurations:Debug or Release"
+filter "configurations:debug or release"
   buildoptions { "-fPIC" }
   includedirs { "plugins/libmp4ff", "static-deps/lib-x86-64/include/x86_64-linux-gnu", "static-deps/lib-x86-64/include"  }
   libdirs { "static-deps/lib-x86-64/lib/x86_64-linux-gnu", "static-deps/lib-x86-64/lib" }
 
 
-filter "configurations:Debug32 or Release32"
-  buildoptions { "-m32" }
+filter "configurations:debug32 or release32"
+  buildoptions { "-std=c99", "-m32" }
   linkoptions { "-m32" }
   includedirs { "plugins/libmp4ff", "static-deps/lib-x86-32/include/i386-linux-gnu", "static-deps/lib-x86-32/include"  }
   libdirs { "static-deps/lib-x86-32/lib/i386-linux-gnu", "static-deps/lib-x86-32/lib" }
 
-filter "configurations:Release32 or Release"
+filter "configurations:release32 or release"
   buildoptions { "-O2" }
 
 project "deadbeef"
@@ -60,6 +60,25 @@ project "mp3"
    defines { "USE_LIBMPG123=1", "USE_LIBMAD=1" }
    links { "mpg123", "mad" }
 
+project "aac_plugin"
+   kind "SharedLib"
+   language "C"
+   targetdir "bin/%{cfg.buildcfg}/plugins"
+   targetprefix ""
+   targetname "aac"
+
+   files {
+       "plugins/aac/*.h",
+       "plugins/aac/*.c",
+       "shared/mp4tagutil.h",
+       "shared/mp4tagutil.c",
+       "plugins/libmp4ff/*.h",
+       "plugins/libmp4ff/*.c"
+   }
+
+   defines { "USE_MP4FF=1", "USE_TAGGING=1" }
+   links { "faad" }
+
 project "flac_plugin"
    kind "SharedLib"
    language "C"
@@ -91,6 +110,19 @@ project "wavpack_plugin"
 
    links { "wavpack" }
 
+project "ffmpeg"
+   kind "SharedLib"
+   language "C"
+   targetdir "bin/%{cfg.buildcfg}/plugins"
+   targetprefix ""
+
+   files {
+       "plugins/ffmpeg/*.h",
+       "plugins/ffmpeg/*.c",
+   }
+
+   links {"avcodec", "pthread", "avformat", "avcodec", "avutil", "z", "opencore-amrnb", "opencore-amrwb", "opus"}
+
 project "vorbis_plugin"
    kind "SharedLib"
    language "C"
@@ -108,6 +140,30 @@ project "vorbis_plugin"
    defines { "HAVE_OGG_STREAM_FLUSH_FILL" }
    links { "vorbisfile", "vorbis", "m", "ogg" }
 
+project "opus_plugin"
+   kind "SharedLib"
+   language "C"
+   targetdir "bin/%{cfg.buildcfg}/plugins"
+   targetprefix ""
+   targetname "opus"
+
+   files {
+       "plugins/opus/*.h",
+       "plugins/opus/*.c",
+       "plugins/liboggedit/*.h",
+       "plugins/liboggedit/*.c",
+   }
+
+   defines { "HAVE_OGG_STREAM_FLUSH_FILL" }
+   links { "opusfile", "opus", "m", "ogg" }
+   filter "configurations:debug32 or release32"
+   
+      includedirs { "static-deps/lib-x86-32/include/opus" }
+
+   filter "configurations:debug or release"
+   
+      includedirs { "static-deps/lib-x86-64/include/opus" }
+
 project "ffap"
    kind "SharedLib"
    language "C"
@@ -123,7 +179,7 @@ project "ffap"
    filter 'files:**.asm'
        buildmessage 'YASM Assembling : %{file.relpath}'
 
-       filter "configurations:Debug32 or Release32"
+       filter "configurations:debug32 or release32"
            buildcommands
            {
                'yasm -f elf -D ARCH_X86_32 -m x86 -DPREFIX -o "obj/%{cfg.buildcfg}/ffap/%{file.basename}.o" "%{file.relpath}"'
@@ -136,7 +192,7 @@ project "ffap"
 
            defines { "APE_USE_ASM=yes", "ARCH_X86_32=1" }
 
-       filter "configurations:Debug or Release"
+       filter "configurations:debug or release"
            buildcommands
            {
                'yasm -f elf -D ARCH_X86_64 -m amd64 -DPIC -DPREFIX -o "obj/%{cfg.buildcfg}/ffap/%{file.basename}.o" "%{file.relpath}"'
@@ -178,6 +234,18 @@ project "alsa"
 
    links { "asound" }
 
+project "dsp_libsrc"
+   kind "SharedLib"
+   language "C"
+   targetdir "bin/%{cfg.buildcfg}/plugins"
+   targetprefix ""
+
+   files {
+       "plugins/dsp_libsrc/src.c",
+   }
+
+   links { "samplerate" }
+
 project "pulse"
    kind "SharedLib"
    language "C"
@@ -207,19 +275,55 @@ project "ddb_gui_GTK2"
        "plugins/libparser/parser.c",
        "utf8.c",
    }
+   excludes {
+        "plugins/gtkui/deadbeefapp.c",
+        "plugins/gtkui/gtkui-gresources.c"
+   }
 
    links { "jansson", "gtk-x11-2.0", "pango-1.0", "cairo", "gdk-x11-2.0", "gdk_pixbuf-2.0", "gobject-2.0", "gthread-2.0", "glib-2.0" }
 
-    filter "configurations:Debug32 or Release32"
+    filter "configurations:debug32 or release32"
     
        includedirs { "static-deps/lib-x86-32/gtk-2.16.0/include/**", "static-deps/lib-x86-32/gtk-2.16.0/lib/**", "plugins/gtkui", "plugins/libparser" }
        libdirs { "static-deps/lib-x86-32/gtk-2.16.0/lib", "static-deps/lib-x86-32/gtk-2.16.0/lib/**" }
 
-    filter "configurations:Debug or Release"
+    filter "configurations:debug or release"
     
        includedirs { "static-deps/lib-x86-64/gtk-2.16.0/include/**", "static-deps/lib-x86-64/gtk-2.16.0/lib/**", "plugins/gtkui", "plugins/libparser" }
        libdirs { "static-deps/lib-x86-64/gtk-2.16.0/lib", "static-deps/lib-x86-64/gtk-2.16.0/lib/**" }
 
+project "ddb_gui_GTK3"
+   kind "SharedLib"
+   language "C"
+   targetdir "bin/%{cfg.buildcfg}/plugins"
+   targetprefix ""
+   files {
+       "plugins/gtkui/*.h",
+       "plugins/gtkui/*.c",
+       "shared/pluginsettings.h",
+       "shared/pluginsettings.c",
+       "shared/trkproperties_shared.h",
+       "shared/trkproperties_shared.c",
+       "plugins/libparser/parser.h",
+       "plugins/libparser/parser.c",
+       "utf8.c",
+   }
+
+   prebuildcommands {
+	"glib-compile-resources --sourcedir=plugins/gtkui --target=plugins/gtkui/gtkui-gresources.c --generate-source plugins/gtkui/gtkui.gresources.xml"
+   }
+
+   links { "jansson", "gtk-3", "gdk-3", "pangocairo-1.0", "pango-1.0", "atk-1.0", "cairo-gobject", "cairo", "gdk_pixbuf-2.0", "gio-2.0", "gobject-2.0", "gthread-2.0", "glib-2.0" }
+
+    filter "configurations:debug32 or release32"
+
+       includedirs { "static-deps/lib-x86-32/gtk-3.10.8/usr/include/**", "static-deps/lib-x86-32/gtk-3.10.8/usr/lib/**", "plugins/gtkui", "plugins/libparser" }
+       libdirs { "static-deps/lib-x86-32/gtk-3.10.8/lib/**", "static-deps/lib-x86-32/gtk-3.10.8/usr/lib/**" }
+
+    filter "configurations:debug or release"
+
+       includedirs { "static-deps/lib-x86-64/gtk-3.10.8/usr/include/**", "static-deps/lib-x86-64/gtk-3.10.8/usr/lib/**", "plugins/gtkui", "plugins/libparser" }
+       libdirs { "static-deps/lib-x86-64/gtk-3.10.8/lib/**", "static-deps/lib-x86-64/gtk-3.10.8/usr/lib/**" }
 
 project "rg_scanner"
    kind "SharedLib"
@@ -248,6 +352,114 @@ project "converter"
        "plugins/libmp4ff/*.c",
        "shared/mp4tagutil.c",
    }
+
+project "sndfile_plugin"
+   kind "SharedLib"
+   language "C"
+   targetdir "bin/%{cfg.buildcfg}/plugins"
+   targetprefix ""
+
+   files {
+       "plugins/sndfile/*.c",
+       "plugins/sndfile/*.h",
+   }
+   links { "sndfile" }
+   targetname "sndfile"
+
+project "sid"
+   kind "SharedLib"
+   language "C"
+   targetdir "bin/%{cfg.buildcfg}/plugins"
+   targetprefix ""
+
+   includedirs {
+        "plugins/sid/sidplay-libs/libsidplay/include",
+        "plugins/sid/sidplay-libs/builders/resid-builder/include",
+        "plugins/sid/sidplay-libs",
+        "plugins/sid/sidplay-libs/unix",
+        "plugins/sid/sidplay-libs/libsidplay",
+        "plugins/sid/sidplay-libs/libsidplay/include",
+        "plugins/sid/sidplay-libs/libsidplay/include/sidplay",
+        "plugins/sid/sidplay-libs/libsidutils/include/sidplay/utils",
+        "plugins/sid/sidplay-libs/builders/resid-builder/include/sidplay/builders",
+        "plugins/sid/sidplay-libs/builders/resid-builder/include"
+    }
+   defines {
+      "HAVE_STRCASECMP=1",
+      "HAVE_STRNCASECMP=1",
+      "PACKAGE=\"libsidplay2\"",
+   }
+
+   files {
+       "plugins/sid/*.c",
+       "plugins/sid/*.cpp",
+       "plugins/sid/sidplay-libs/libsidplay/src/*.cpp",
+       "plugins/sid/sidplay-libs/libsidplay/src/*.c",
+       "plugins/sid/sidplay-libs/builders/resid-builder/src/*.cpp",
+       "plugins/sid/sidplay-libs/libsidplay/src/c64/*.cpp",
+       "plugins/sid/sidplay-libs/libsidplay/src/mos6510/*.cpp",
+       "plugins/sid/sidplay-libs/libsidplay/src/mos6526/*.cpp",
+       "plugins/sid/sidplay-libs/libsidplay/src/mos656x/*.cpp",
+       "plugins/sid/sidplay-libs/libsidplay/src/sid6526/*.cpp",
+       "plugins/sid/sidplay-libs/libsidplay/src/sidtune/*.cpp",
+       "plugins/sid/sidplay-libs/libsidplay/src/xsid/*.cpp",
+       "plugins/sid/sidplay-libs/resid/*.cpp"
+   }
+   targetname "sid"
+   links { "stdc++" }
+
+project "psf"
+   kind "SharedLib"
+   language "C"
+   targetdir "bin/%{cfg.buildcfg}/plugins"
+   targetprefix ""
+
+   includedirs {
+        "plugins/psf",
+        "plugins/psf/eng_ssf",
+        "plugins/psf/eng_qsf",
+        "plugins/psf/eng_dsf",
+    }
+   defines {
+      "HAS_PSXCPU=1",
+   }
+
+   files {
+        "plugins/psf/plugin.c",
+        "plugins/psf/psfmain.c",
+        "plugins/psf/corlett.c",
+        "plugins/psf/eng_dsf/eng_dsf.c",
+        "plugins/psf/eng_dsf/dc_hw.c",
+        "plugins/psf/eng_dsf/aica.c",
+        "plugins/psf/eng_dsf/aicadsp.c",
+        "plugins/psf/eng_dsf/arm7.c",
+        "plugins/psf/eng_dsf/arm7i.c",
+        "plugins/psf/eng_ssf/m68kcpu.c",
+        "plugins/psf/eng_ssf/m68kopac.c",
+        "plugins/psf/eng_ssf/m68kopdm.c",
+        "plugins/psf/eng_ssf/m68kopnz.c",
+        "plugins/psf/eng_ssf/m68kops.c",
+        "plugins/psf/eng_ssf/scsp.c",
+        "plugins/psf/eng_ssf/scspdsp.c",
+        "plugins/psf/eng_ssf/sat_hw.c",
+        "plugins/psf/eng_ssf/eng_ssf.c",
+        "plugins/psf/eng_qsf/eng_qsf.c",
+        "plugins/psf/eng_qsf/kabuki.c",
+        "plugins/psf/eng_qsf/qsound.c",
+        "plugins/psf/eng_qsf/z80.c",
+        "plugins/psf/eng_qsf/z80dasm.c",
+        "plugins/psf/eng_psf/eng_psf.c",
+        "plugins/psf/eng_psf/psx.c",
+        "plugins/psf/eng_psf/psx_hw.c",
+        "plugins/psf/eng_psf/peops/spu.c",
+        "plugins/psf/eng_psf/eng_psf2.c",
+        "plugins/psf/eng_psf/peops2/spu2.c",
+        "plugins/psf/eng_psf/peops2/dma2.c",
+        "plugins/psf/eng_psf/peops2/registers2.c",
+        "plugins/psf/eng_psf/eng_spu.c",
+   }
+   targetname "psf"
+   links { "z", "m" }
 
 project "m3u"
    kind "SharedLib"
@@ -287,22 +499,103 @@ project "converter_gtk2"
    }
    links { "gtk-x11-2.0", "pango-1.0", "cairo", "gdk-x11-2.0", "gdk_pixbuf-2.0", "gobject-2.0", "gthread-2.0", "glib-2.0" }
 
-   filter "configurations:Debug32 or Release32"
+   filter "configurations:debug32 or release32"
        includedirs { "static-deps/lib-x86-32/gtk-2.16.0/include/**", "static-deps/lib-x86-32/gtk-2.16.0/lib/**", "plugins/gtkui", "plugins/libparser" }
        libdirs { "static-deps/lib-x86-32/gtk-2.16.0/lib", "static-deps/lib-x86-32/gtk-2.16.0/lib/**" }
 
-   filter "configurations:Release or Debug"
+   filter "configurations:release or debug"
        includedirs { "static-deps/lib-x86-64/gtk-2.16.0/include/**", "static-deps/lib-x86-64/gtk-2.16.0/lib/**", "plugins/gtkui", "plugins/libparser" }
        libdirs { "static-deps/lib-x86-64/gtk-2.16.0/lib", "static-deps/lib-x86-64/gtk-2.16.0/lib/**" }
+
+
+project "wildmidi_plugin"
+   kind "SharedLib"
+   language "C"
+   targetdir "bin/%{cfg.buildcfg}/plugins"
+   targetprefix ""
+   targetname "wildmidi"
+
+   files {
+       "plugins/wildmidi/*.h",
+       "plugins/wildmidi/*.c",
+       "plugins/wildmidi/src/*.h",
+       "plugins/wildmidi/src/*.c",
+   }
+
+   excludes {
+       "plugins/wildmidi/src/wildmidi.c"
+   }
+
+   includedirs { "plugins/wildmidi/include" }
+
+   defines { "WILDMIDI_VERSION=\"0.2.2\"", "WILDMIDILIB_VERSION=\"0.2.2\"", "TIMIDITY_CFG=\"/etc/timidity.conf\"" }
+   links { "m" }
+
+project "artwork_plugin"
+   kind "SharedLib"
+   language "C"
+   targetdir "bin/%{cfg.buildcfg}/plugins"
+   targetprefix ""
+   targetname "artwork"
+
+   files {
+       "plugins/artwork-legacy/*.c",
+       "plugins/libmp4ff/*.c"
+   }
+
+   excludes {
+   }
+
+   includedirs { "../libmp4ff" }
+
+   defines { "USE_OGG=1", "USE_VFS_CURL", "USE_METAFLAC", "USE_MP4FF", "USE_TAGGING=1" }
+   links { "jpeg", "png", "z", "FLAC", "ogg" }
+
+project "supereq_plugin"
+   kind "SharedLib"
+   language "C"
+   targetdir "bin/%{cfg.buildcfg}/plugins"
+   targetprefix ""
+   targetname "supereq"
+
+   files {
+       "plugins/supereq/*.c",
+       "plugins/supereq/*.cpp"
+   }
+
+   defines { "USE_OOURA" }
+   links { "m", "stdc++" }
+
+project "mono2stereo_plugin"
+   kind "SharedLib"
+   language "C"
+   targetdir "bin/%{cfg.buildcfg}/plugins"
+   targetprefix ""
+   targetname "ddb_mono2stereo"
+
+   files {
+       "plugins/mono2stereo/*.c",
+   }
+
+project "nullout"
+   kind "SharedLib"
+   language "C"
+   targetdir "bin/%{cfg.buildcfg}/plugins"
+   targetprefix ""
+
+   files {
+       "plugins/nullout/*.h",
+       "plugins/nullout/*.c",
+   }
 
 
 project "resources"
     kind "Utility"
     postbuildcommands {
-        "mkdir -p bin/%{cfg.buildcfg}/pixmaps",
-        "cp icons/32x32/deadbeef.png bin/%{cfg.buildcfg}",
-        "cp pixmaps/*.png pixmaps/*.svg bin/%{cfg.buildcfg}/pixmaps/",
-        "mkdir -p bin/%{cfg.buildcfg}/plugins/convpresets",
-        "cp -r plugins/converter/convpresets bin/%{cfg.buildcfg}/plugins/",
+        "{MKDIR} bin/%{cfg.buildcfg}/pixmaps",
+        "{COPY} icons/32x32/deadbeef.png bin/%{cfg.buildcfg}",
+        "{COPY} pixmaps/*.png pixmaps/*.svg bin/%{cfg.buildcfg}/pixmaps/",
+        "{MKDIR} bin/%{cfg.buildcfg}/plugins/convpresets",
+        "{COPY} plugins/converter/convpresets bin/%{cfg.buildcfg}/plugins/",
     }
 

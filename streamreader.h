@@ -35,6 +35,7 @@ typedef struct streamblock_s {
     char *buf;
     int size; // how much bytes total in the buffer, up to BLOCK_SIZE, but can be less
     int pos; // read position in the buffer
+    int first; // set to 1 for the first buffer of the stream, following the block with last=1
     int last; // set to 1 for last buffer of the stream
     int bitrate;
 
@@ -55,9 +56,11 @@ streamblock_t *
 streamreader_get_next_block (void);
 
 // Reads data from stream to the specified block.
+// The mutex must NOT be locked when this function is called.
+// It will get locked if successful.
 // Returns negative value on error.
 int
-streamreader_read_block (streamblock_t *block, playItem_t *track, DB_fileinfo_t *fileinfo);
+streamreader_read_block (streamblock_t *block, playItem_t *track, DB_fileinfo_t *fileinfo, uint64_t mutex);
 
 // Appends (enqueues) the block to the list of blocks containing data.
 // The passed block pointer must be the same as returned by `streamreader_get_next_block`.
@@ -81,5 +84,9 @@ streamreader_reset (void);
 int
 streamreader_num_blocks_ready (void);
 ///@}
+
+// Notify streamreader that some configuration has changed
+void
+streamreader_configchanged (void);
 
 #endif /* streamreader_h */

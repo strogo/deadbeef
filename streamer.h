@@ -184,4 +184,7 @@ void
 streamer_yield (void);
 ///@}
 
+void
+streamer_set_output (DB_output_t *output);
+
 #endif // __STREAMER_H
