@@ -5,7 +5,9 @@ DeaDBeeF is a music player for *nix-like systems and OS X. It supports many diff
 
 @section start_here Start here
 _To be done..._
-- deadbeef.h Deadbeef API<br>
+- deadbeef.h DeaDBeeF header file<br>
+- DB_functions_t DeaDBeeF API functions<br>
+- DB_plugin_s DeaDBeeF Plugin definition structure<br>
 Detailed documentation for writing own plugin
 
 
