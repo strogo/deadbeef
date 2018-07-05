@@ -1112,15 +1112,15 @@ typedef struct {
     float (*pl_get_item_replaygain) (DB_playItem_t *it, int idx);
 
     // playqueue support (obsolete since API 1.8)
-    /// @deprecated deprecated since API 1.8, check ::playqueue_push
+    /// @deprecated deprecated since API 1.8, check @ref playqueue_push
     int (*pl_playqueue_push) (DB_playItem_t *it) DEPRECATED_18;
-    /// @deprecated deprecated since API 1.8, check ::playqueue_clear
+    /// @deprecated deprecated since API 1.8, check @ref playqueue_clear
     void (*pl_playqueue_clear) (void) DEPRECATED_18;
-    /// @deprecated deprecated since API 1.8, check ::playqueue_pop
+    /// @deprecated deprecated since API 1.8, check @ref playqueue_pop
     void (*pl_playqueue_pop) (void) DEPRECATED_18;
-    /// @deprecated deprecated since API 1.8, check ::playqueue_remove
+    /// @deprecated deprecated since API 1.8, check @ref playqueue_remove
     void (*pl_playqueue_remove) (DB_playItem_t *it) DEPRECATED_18;
-    /// @deprecated deprecated since API 1.8, check ::playqueue_test
+    /// @deprecated deprecated since API 1.8, check @ref playqueue_test
     int (*pl_playqueue_test) (DB_playItem_t *it) DEPRECATED_18;
 
     /**
@@ -1330,8 +1330,10 @@ typedef struct {
     /// this is useful for prompting a user when he attempts to quit the player
     /// while something is working in background, e.g. the Converter,
     /// and let him finish or cancel the background jobs.
+    /// @see have_background_jobs
     void (*background_job_increment) (void);
     /// Decrements background job counter
+    /// @see have_background_jobs
     void (*background_job_decrement) (void);
     /// @returns Number of background jobs
     int (*have_background_jobs) (void);
@@ -1341,10 +1343,10 @@ typedef struct {
 
     /// save referenced playlist in config
     ///
-    /// same as ::pl_save_current, but for index
+    /// same as @ref pl_save_current, but for index
     int (*plt_save_n) (int n);
 
-    /// same as ::pl_save_current, but for playlist pointer
+    /// same as @ref pl_save_current, but for playlist pointer
     int (*plt_save_config) (ddb_playlist_t *plt);
 
     /// register file added callback
@@ -1408,20 +1410,19 @@ typedef struct {
 
     /// compile the input title formatting string into bytecode
     /// @param script freeform string with title formatting special characters in it
-    /// @returns pointer to compiled bytecode, which must be ::tf_free'd by the caller.
+    /// @returns pointer to compiled bytecode, which must be @ref tf_free'd by the caller.
     char *(*tf_compile) (const char *script);
 
-    /// free the code returned by ::tf_compile
+    /// free the code returned by @ref tf_compile
     void (*tf_free) (char *code);
 
     /// evaluate the titleformatting script in a given context
     /// @param ctx a pointer to ::ddb_tf_context_t structure initialized by the caller
-    /// @param code the bytecode data created by ::tf_compile
+    /// @param code the bytecode data created by @ref tf_compile
     /// @param out buffer allocated by the caller, must be big enough to fit the output string
     /// @param outlen the size of out buffer
     /// @returns Returns -1 on fail, output size on success
     int (*tf_eval) (ddb_tf_context_t *ctx, const char *code, char *out, int outlen);
-
     /// sort using title formatting v2
     void (*plt_sort_v2) (ddb_playlist_t *plt, int iter, int id, const char *format, int order);
 
