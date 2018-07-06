@@ -98,7 +98,22 @@ extern "C" {
 // 0.2 -- deadbeef-0.2.3
 // 0.1 -- deadbeef-0.2.0
 
+/// API version number (major)
+/// @n 0 - until deadbeef-0.4.4
+/// @n 1 - since deadbeef-0.5.0
 #define DB_API_VERSION_MAJOR 1
+/// API version number (minor)
+/// @n For DB_API_VERSION_MAJOR=1:
+/// @n 1 -- deadbeef-0.5.1
+/// @n 2 -- deadbeef-0.5.2
+/// @n 3 -- deadbeef-0.5.3
+/// @n 4 -- deadbeef-0.5.5
+/// @n 5 -- deadbeef-0.6
+/// @n 6 -- deadbeef-0.6.1
+/// @n 7 -- deadbeef-0.6.2
+/// @n 8 -- deadbeef-0.7.0
+/// @n 9 -- deadbeef-0.7.2
+/// @n 10 -- trunk
 #define DB_API_VERSION_MINOR 10
 
 #if defined(__clang__)
@@ -200,6 +215,9 @@ extern "C" {
 #define DEPRECATED
 #endif
 
+/// Sets plugin version to the same as header
+/// @note Use only for DeaDBeeF internal plugins, for 3rd party plugins set plugin api manually
+/// @see DB_API_VERSION_MAJOR, DB_API_VERSION_MINOR
 #define DDB_PLUGIN_SET_API_VERSION\
     .plugin.api_vmajor = DB_API_VERSION_MAJOR,\
     .plugin.api_vminor = DB_API_VERSION_MINOR,
@@ -309,6 +327,7 @@ typedef struct DB_apev2_tag_s {
 } DB_apev2_tag_t;
 
 /// plugin types
+/// @see DB_plugin_s.type
 enum {
     DB_PLUGIN_DECODER = 1,
     DB_PLUGIN_OUTPUT  = 2,
@@ -395,8 +414,10 @@ typedef struct DB_conf_item_s {
 /// event callback type
 typedef int (*DB_callback_t)(ddb_event_t *, uintptr_t data);
 
-/// @name events
-/// @
+/// event id's
+///
+/// events after (or equal!) @ref DB_EV_FIRST are structured events
+/// @see DB_plugin_s.message
 enum {
     /// switch to next track
     DB_EV_NEXT = 1,
@@ -404,7 +425,8 @@ enum {
     DB_EV_PREV = 2,
     /// play current track (will start/unpause if stopped or paused)
     DB_EV_PLAY_CURRENT = 3,
-    /// play track nr. p1
+    /// play specific track
+    /// @param p1 track number
     DB_EV_PLAY_NUM = 4,
     /// stop current track
     DB_EV_STOP = 5,
@@ -427,13 +449,14 @@ enum {
     DB_EV_TOGGLE_PAUSE = 12,
     /// will be fired every time player is activated
     DB_EV_ACTIVATED = 13,
-    /// player was paused (p1=1) or unpaused (p1=0)
+    /// player was paused or unpaused
+    /// @param p1 1 - if paused @n 0 - if unpaused
     DB_EV_PAUSED = 14,
     /**
       * playlist contents were changed (e.g. metadata in any track)
       * @note it's usually sent on LARGE changes,
       * when multiple tracks are affected, while for single tracks
-      * the DB_EV_TRACKINFOCHANGED is preferred
+      * the @ref DB_EV_TRACKINFOCHANGED is preferred
       * @param p1 (since API 1.8) one of ddb_playlist_change_t enum values, detailing what exactly has been changed
       */
     DB_EV_PLAYLISTCHANGED = 15, 
@@ -486,7 +509,7 @@ enum {
 
     /// trackinfo was changed (included medatata, playback status, playqueue state, etc)
     /// @param ctx ::ddb_event_track_t
-    /// @note when multiple tracks change, DB_EV_PLAYLISTCHANGED may be sent instead, so always handle both events
+    /// @note when multiple tracks change, @ref DB_EV_PLAYLISTCHANGED may be sent instead, so always handle both events
     DB_EV_TRACKINFOCHANGED = 1004,
 
     /// seek happened
@@ -1281,8 +1304,8 @@ typedef struct {
     void (*metacache_unref) (const char *str);
 
     // this function must return original un-overriden value (ignoring the keys prefixed with '!')
-    // it's not thread-safe, and must be used under the same conditions as the
-    // pl_find_meta
+    /// @note it's not thread-safe, and must be used under the same conditions as the
+    /// pl_find_meta
     const char *(*pl_find_meta_raw) (DB_playItem_t *it, const char *key);
 #endif
 
@@ -1507,14 +1530,15 @@ typedef struct {
     // Same as log_detailed but uses va_list
     void (*vlog_detailed) (struct DB_plugin_s *plugin, uint32_t layer, const char *fmt, va_list ap);
 
-    // High level easy-to-use log function, with no scope
-    // These log messages cannot be disabled, and will always appear in the Log Viewers
+    /// High level easy-to-use log function, with no scope
+    /// @n These log messages cannot be disabled, and will always appear in the Log Viewers
     void (*log) (const char *fmt, ...);
 
-    // Same as log but uses va_list
+    /// Same as log but uses va_list
+    /// @see log
     void (*vlog) (const char *fmt, va_list ap);
 
-    // Custom log viewers, for use in e.g. UI plugins
+    /// Custom log viewers, for use in e.g. UI plugins
     void (*log_viewer_register) (void (*callback)(struct DB_plugin_s *plugin, uint32_t layers, const char *text, void *ctx), void *ctx);
     void (*log_viewer_unregister) (void (*callback)(struct DB_plugin_s *plugin, uint32_t layers, const char *text, void *ctx), void *ctx);
     ///
@@ -1533,7 +1557,7 @@ typedef struct {
     // The callback must return 0 to continue, or a negative value to skip the file
     int (*register_fileadd_filter) (int (*callback)(ddb_file_found_data_t *data, void *user_data), void *user_data);
 
-    // Unregisters the filter by ID, returned by register_file_filter
+    /// Unregisters the filter by ID, returned by register_file_filter
     void (*unregister_fileadd_filter) (int id);
     ///
     ////// MetaCache APIs available from 1.10+ //////
@@ -1541,16 +1565,16 @@ typedef struct {
      *  MetaCache
      */
     ///
-    // Returns an existing NULL-terminated string, or NULL if it doesn't exist
+    /// Returns an existing NULL-terminated string, or NULL if it doesn't exist
     const char * (*metacache_get_string) (const char *str);
 
-    // Adds a new value of specified size, or finds an existing one
+    /// Adds a new value of specified size, or finds an existing one
     const char * (*metacache_add_value) (const char *value, size_t valuesize);
 
-    // Returns an existing value of specified size, or NULL if it doesn't exist
+    /// Returns an existing value of specified size, or NULL if it doesn't exist
     const char *(*metacache_get_value) (const char *value, size_t valuesize);
 
-    // Removes an existing value of specified size, ignoring refcount
+    /// Removes an existing value of specified size, ignoring refcount
     void (*metacache_remove_value) (const char *value, size_t valuesize);
 
     ///
@@ -1631,7 +1655,7 @@ typedef struct {
 //
 // if (none of the above)  -> track context menu
 
-/// @enum actions
+/// actions
 enum {
     /// An menu item for this action should be added to the main menu (ex. Playback/Skip to/Previous genre)
     DB_ACTION_COMMON = 1 << 0,
@@ -1698,9 +1722,9 @@ typedef struct DB_plugin_action_s {
     const char *title;
     const char *name;
     uint32_t flags;
-    // the use of "callback" is deprecated,
-    // only use it if the code must be compatible with API 1.4
-    // otherwise switch to callback2
+    /// @note the use of "callback" is deprecated,
+    /// only use it if the code must be compatible with API 1.4,
+    /// otherwise switch to callback2
     DB_plugin_action_callback_t callback;
     struct DB_plugin_action_s *next;
 #if (DDB_API_LEVEL >= 5)
@@ -1709,22 +1733,27 @@ typedef struct DB_plugin_action_s {
 } DB_plugin_action_t;
 
 #if (DDB_API_LEVEL >= 10)
+/// @see DB_plugin_s.flags
 enum {
-    // Tells the system that the plugin has logging enabled
+    /// Tells the system that the plugin has logging enabled
     DDB_PLUGIN_FLAG_LOGGING = 1,
 
-    // Tells the system that the plugin supports replaygain, and streamer should not do it
+    /// Tells the system that the plugin supports replaygain, and streamer should not do it
     DDB_PLUGIN_FLAG_REPLAYGAIN = 2,
 };
 #endif
 
 /// base plugin interface
+/// @ref DB_plugin_s
 typedef struct DB_plugin_s {
     /// type must be one of DB_PLUGIN_ types
+    /// @see DB_PLUGIN_DECODER for available types
     int32_t type;
     /// api major version
+    /// @see DB_API_VERSION_MAJOR
     int16_t api_vmajor;
     /// api minor version
+    /// @see DB_API_VERSION_MINOR
     int16_t api_vminor;
     /// plugin major version
     int16_t version_major;
@@ -1732,6 +1761,7 @@ typedef struct DB_plugin_s {
     int16_t version_minor;
 
     /// plugin flags
+    /// @see DDB_PLUGIN_FLAG_LOGGING
     uint32_t flags; // DDB_PLUGIN_FLAG_*
     uint32_t reserved1;
     uint32_t reserved2;
@@ -1799,7 +1829,7 @@ typedef struct DB_plugin_s {
     /// mainloop will call this function for every plugin
     /// so that plugins may handle all events;
     /// can be NULL
-    ///
+    /// @see DB_EV_NEXT
     int (*message) (uint32_t id, uintptr_t ctx, uint32_t p1, uint32_t p2);
 
     ///
@@ -1921,6 +1951,7 @@ typedef struct DB_decoder_s {
 } DB_decoder_t;
 
 /// output plugin
+/// @ref DB_output_s
 typedef struct DB_output_s {
     DB_plugin_t plugin;
     // init is called once at plugin activation
@@ -1966,6 +1997,7 @@ typedef struct ddb_dsp_context_s {
     unsigned enabled : 1;
 } ddb_dsp_context_t;
 
+/// @ref DB_dsp_s
 typedef struct DB_dsp_s {
     DB_plugin_t plugin;
 
@@ -2015,6 +2047,7 @@ typedef struct {
 } DB_misc_t;
 
 /// vfs plugin
+/// @ref DB_vfs_s <br>
 /// provides means for reading, seeking, etc
 /// api is based on stdio
 typedef struct DB_vfs_s {
@@ -2085,6 +2118,7 @@ enum {
     ddb_button_max,
 };
 
+/// @ref DB_gui_s
 typedef struct DB_gui_s {
     DB_plugin_t plugin;
 
@@ -2094,6 +2128,7 @@ typedef struct DB_gui_s {
 } DB_gui_t;
 
 /// playlist plugin
+/// @ref DB_playlist_s
 typedef struct DB_playlist_s {
     DB_plugin_t plugin;
 

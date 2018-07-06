@@ -1,0 +1,113 @@
+/** 
+@page plugin_tutorial Plugin Tutorial
+
+@section intro Introduction
+DeaDBeeF supports external plugins which uses DeaDBeeF API calls. In this tutorial you will learn how to use it. This tutorial will use C language and linux platform.
+
+Plugins are compiled as shared library. They are loaded dynamically on runtime. In next section you will learn what each plugin needs to do.
+
+To access deadbeef definitions include deadbeef header file:
+@code
+#include <deadbeef/deadbeef.h>
+@endcode
+
+
+@section plugin_header Plugin header
+Each plugin needs a header. It contains basic information as plugin name, author and pointers to your plugin functions. For more information see @ref DB_plugin_t. It's not defined directly however. It is encapsulated inside plugin structure. There are different headers for different plugin types:
+- @ref DB_dsp_t - DSP plugin
+- @ref DB_gui_t - GUI plugin
+- @ref DB_misc_t - Misc plugin
+- @ref DB_output_t - Output plugin
+- @ref DB_playlist_t - playlist plugin
+- @ref DB_vfs_t - vfs (virtual file system) plugin
+
+@note Plugin type ending `_t` mean that these are typedef types. Typedef @ref DB_output_t is equivalent to `struct` @ref DB_output_s
+
+Some information about each plugin type can be found at https://github.com/DeaDBeeF-Player/deadbeef/wiki/Developing-your-own-plugin
+
+Each plugin type includes @ref DB_plugin_t header at the beginning; this allows you to cast each plugin pointer as @ref DB_plugin_t without any problems! Additionally each plugin type includes type specific functions, except @ref DB_misc_t.
+
+Here is example plugin header for notify plugin:
+@code
+DB_misc_t plugin = {
+    DDB_PLUGIN_SET_API_VERSION
+    .plugin.type = DB_PLUGIN_MISC,
+    .plugin.version_major = 1,
+    .plugin.version_minor = 0,
+    .plugin.id = "notify",
+    .plugin.name = "OSD Notify",
+    .plugin.descr = "Displays notifications when new track starts.\nRequires dbus and notification daemon to be running.\nNotification daemon should be provided by your desktop environment.\n",
+    .plugin.copyright = 
+        "OSD Notification plugin for DeaDBeeF Player\n"
+        "Copyright (C) 2009-2014 Alexey Yakovenko and contributors\n"
+        "\n"
+        "This program is free software; you can redistribute it and/or\n"
+        "modify it under the terms of the GNU General Public License\n"
+        "as published by the Free Software Foundation; either version 2\n"
+        "of the License, or (at your option) any later version.\n"
+        "\n"
+        "This program is distributed in the hope that it will be useful,\n"
+        "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+        "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
+        "GNU General Public License for more details.\n"
+        "\n"
+        "You should have received a copy of the GNU General Public License\n"
+        "along with this program; if not, write to the Free Software\n"
+        "Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.\n"
+    ,
+    .plugin.website = "http://deadbeef.sourceforge.net",
+    .plugin.start = notify_start,
+    .plugin.stop = notify_stop,
+    .plugin.connect = notify_connect,
+    .plugin.disconnect = notify_disconnect,
+    .plugin.configdialog = settings_dlg,
+    .plugin.message = notify_message,
+};
+@endcode
+@note In above example @ref DDB_PLUGIN_SET_API_VERSION macro is used. This macro sets `.plugin.api_vmajor` and `.plugin.api_vminor` to header API version.
+@note <b>DON'T USE IT IN OWN WRITTEN PLUGINS!</b> Define `.plugin.api_vmajor` and `.plugin.api_vminor` manually to the most recent API version at time of writing.
+
+@section dlopen Dynamic loading of plugin
+When deadbeef starts, your plugin will be dlopened. DeaDBeeF will look for `PLUG_NAME_load` function, where `PLUG_NAME` is the plugin filename (without suffix of course). Let us see how it looks for plugin notify:
+@code
+DB_plugin_t *
+notify_load (DB_functions_t *ddb) {
+    deadbeef = ddb;
+    return &plugin.plugin;
+}
+@endcode
+
+@note Instead of returning `&plugin.plugin` you can return `DB_PLUGIN(&plugin);`. In practice returned adress will be the same for both cases.
+
+`notify_load` is called with @ref DB_functions_t *ddb argument. With this pointer you can call player functions. In this example it will be stored in `deadbeef` which is allocated as global variable. Function returns pointer to our plugin header.
+
+@section compile Compiling
+You need to compile your plugin as shared library. Something like this should be enough (if you placed deadbeef header in dir gcc can find):
+@code
+gcc -std=c99 -shared -O2 -o myplugin.so myplugin.c
+@endcode
+Code below is the Makefile I use. Feel free to use it.
+@code
+CC=gcc
+STD=gnu99
+CFLAGS=-fPIC -I /usr/local/include -Wall
+ifeq ($(DEBUG),1)
+CFLAGS +=-g -O0
+endif
+
+PREFIX=/usr/local/lib/deadbeef
+PLUGNAME=example
+LIBS=
+
+all:
+	$(CC) -std=$(STD) -c $(CFLAGS) -c $(PLUGNAME).c
+	$(CC) -std=$(STD) -shared $(CFLAGS) -o $(PLUGNAME).so $(PLUGNAME).o $(LIBS)
+
+install:
+	cp $(PLUGNAME).$(SUFFIX) $(PREFIX)
+
+clean:
+	rm -fv $(PLUGNAME).o $(PLUGNAME).$(SUFFIX)
+@endcode
+
+*/
