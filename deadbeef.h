@@ -457,7 +457,7 @@ enum {
       * @note it's usually sent on LARGE changes,
       * when multiple tracks are affected, while for single tracks
       * the @ref DB_EV_TRACKINFOCHANGED is preferred
-      * @param p1 (since API 1.8) one of ddb_playlist_change_t enum values, detailing what exactly has been changed
+      * @param p1 (since API 1.8) one of @ref ddb_playlist_change_t enum values, detailing what exactly has been changed
       */
     DB_EV_PLAYLISTCHANGED = 15, 
     /// volume was changed
@@ -1795,10 +1795,6 @@ typedef struct DB_plugin_s {
     ///
     /// can be NULL
     ///
-    /// NOTE for GUI plugin developers: don't initialize your widgets/windows in
-    /// the connect method. look for up-to-date information on wiki:
-    ///
-    /// http://github.com/DeaDBeeF-Player/deadbeef/wiki/Porting-GUI-plugins-to-deadbeef-from-0.5.x-to-0.6.0
     ///
     int (*connect) (void);
 
