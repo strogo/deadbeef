@@ -103,32 +103,32 @@ print_help (void) {
 #endif
     fprintf (stdout, _("Usage: deadbeef [options] [--] [file(s)]\n"));
     fprintf (stdout, _("Options:\n"));
-    fprintf (stdout, _("   --help  or  -h     Print help (this message) and exit\n"));
-    fprintf (stdout, _("   --quit             Quit player\n"));
-    fprintf (stdout, _("   --version          Print version info and exit\n"));
-    fprintf (stdout, _("   --play             Start playback\n"));
-    fprintf (stdout, _("   --stop             Stop playback\n"));
-    fprintf (stdout, _("   --pause            Pause playback\n"));
-    fprintf (stdout, _("   --toggle-pause     Toggle pause\n"));
-    fprintf (stdout, _("   --play-pause       Start playback if stopped, toggle pause otherwise\n"));
-    fprintf (stdout, _("   --next             Next song in playlist\n"));
-    fprintf (stdout, _("   --prev             Previous song in playlist\n"));
-    fprintf (stdout, _("   --random           Random song in playlist\n"));
-    fprintf (stdout, _("   --queue            Append file(s) to existing playlist\n"));
-    fprintf (stdout, _("   --gui PLUGIN       Tells which GUI plugin to use, default is \"GTK2\"\n"));
-    fprintf (stdout, _("   --nowplaying FMT   Print formatted track name to stdout\n"));
-    fprintf (stdout, _("                      FMT %%-syntax: [a]rtist, [t]itle, al[b]um,\n"
-                "                      [l]ength, track[n]umber, [y]ear, [c]omment,\n"
-                "                      copy[r]ight, [e]lapsed\n"));
-    fprintf (stdout, _("                      example: --nowplaying \"%%a - %%t\" should print \"artist - title\"\n"));
-    fprintf (stdout, _("                      for more info, see %s\n"), "http://github.com/DeaDBeeF-Player/deadbeef/wiki/Title-formatting");
-    fprintf (stdout, _("                      NOTE: --nowplaying is deprecated.\n"));
-    fprintf (stdout, _("   --nowplaying-tf FMT  Print formatted track name to stdout, using the new title formatting\n"));
-    fprintf (stdout, _("                      FMT syntax: http://github.com/DeaDBeeF-Player/deadbeef/wiki/Title-formatting-2.0\n"));
-    fprintf (stdout, _("                      example: --nowplaying-tf \"%%artist%% - %%title%%\" should print \"artist - title\"\n"));
-    fprintf (stdout, _("   --volume [NUM]     Print or set deadbeef volume level.\n"));
-    fprintf (stdout, _("                      The NUM parameter can be specified in percents (if no suffix) or dB [-50, 0].\n"));
-    fprintf (stdout, _("                      Examples: --volume 80 or --volume -20dB\n"));
+    fprintf (stdout, "   %-18s %s\n", "--help  or  -h ", _("Print help (this message) and exit"));
+    fprintf (stdout, "   %-18s %s\n", "--quit", _("Quit player"));
+    fprintf (stdout, "   %-18s %s\n", "--version", _("Print version info and exit"));
+    fprintf (stdout, "   %-18s %s\n", "--play", _("Start playback"));
+    fprintf (stdout, "   %-18s %s\n", "--stop", _("Stop playback"));
+    fprintf (stdout, "   %-18s %s\n", "--pause", _("Pause playback"));
+    fprintf (stdout, "   %-18s %s\n", "--toggle-pause", _("Toggle pause"));
+    fprintf (stdout, "   %-18s %s\n", "--play-pause", _("Start playback if stopped, toggle pause otherwise"));
+    fprintf (stdout, "   %-18s %s\n", "--next", _("Next song in playlist"));
+    fprintf (stdout, "   %-18s %s\n", "--prev", _("Previous song in playlist"));
+    fprintf (stdout, "   %-18s %s\n", "--random", _("Random song in playlist"));
+    fprintf (stdout, "   %-18s %s\n", "--queue", _("Append file(s) to existing playlist"));
+    fprintf (stdout, "   %-18s %s\n", "--gui PLUGIN", _("Tells which GUI plugin to use, default is \"GTK2\""));
+    fprintf (stdout, "   %-18s %s\n", "--nowplaying FMT", _("Print formatted track name to stdout"));
+    fprintf (stdout, "   %-18s %s\n", "", _("FMT %-syntax: [a]rtist, [t]itle, al[b]um,"));
+    fprintf (stdout, "   %-18s %s\n", "", _("[l]ength, track[n]umber, [y]ear, [c]omment,"));
+    fprintf (stdout, "   %-18s %s\n", "", _("copy[r]ight, [e]lapsed"));
+    fprintf (stdout, "   %-18s %s\n", "", _("example: --nowplaying \"%a - %t\" should print \"artist - title\""));
+    fprintf (stdout, "   %-18s %s %s\n", "", _("for more info, see"), "http://github.com/DeaDBeeF-Player/deadbeef/wiki/Title-formatting");
+    fprintf (stdout, "   %-18s %s\n", "", _("NOTE: --nowplaying is deprecated."));
+    fprintf (stdout, "   %-20s %s\n", "--nowplaying-tf FMT", _("Print formatted track name to stdout, using the new title formatting"));
+    fprintf (stdout, "   %-18s %s %s\n", "", _("FMT syntax:"), "http://github.com/DeaDBeeF-Player/deadbeef/wiki/Title-formatting-2.0");
+    fprintf (stdout, "   %-18s %s\n", "", _("example: --nowplaying-tf \"%artist% - %title%\" should print \"artist - title\""));
+    fprintf (stdout, "   %-18s %s\n", "--volume [NUM]", _("Print or set deadbeef volume level."));
+    fprintf (stdout, "   %-18s %s\n", "", _("The NUM parameter can be specified in percents (if no suffix) or dB [-50, 0]."));
+    fprintf (stdout, "   %-18s %s\n", "", _("Examples: --volume 80 or --volume -20dB"));
 #ifdef ENABLE_NLS
     bind_textdomain_codeset (PACKAGE, "UTF-8");
 #endif
