@@ -301,6 +301,8 @@ gtkui_receive_fm_drop (DB_playItem_t *before, char *mem, int length) {
     deadbeef->thread_detach (tid);
 }
 
+#define USE_GTK_NATIVE_FILE_CHOOSER 1
+
 #if defined __MINGW32__ && GTK_CHECK_VERSION(3,20,0)
 #define USE_GTK_NATIVE_FILE_CHOOSER
 #endif
@@ -310,35 +312,35 @@ gtkui_receive_fm_drop (DB_playItem_t *before, char *mem, int length) {
 #undef USE_GTK_NATIVE_FILE_CHOOSER
 #endif
 #endif
-
+/*
 #ifdef USE_GTK_NATIVE_FILE_CHOOSER
 static GtkFileFilter *
 set_file_filter (GtkFileChooser *dlg, const char *name) {
     if (!name) {
         name = _("Supported sound formats");
     }
-    static char extlist[10000];
-
-    // Build extension list
-    if (extlist[0] == '\0') {
-        DB_decoder_t **codecs = deadbeef->plug_get_decoder_list ();
-        for (int i = 0; codecs[i]; i++) {
-            if (codecs[i]->exts && codecs[i]->insert) {
-                const char **exts = codecs[i]->exts;
-                for (int e = 0; exts[e]; e++) {
-                    char buf[100];
-                    snprintf (buf, sizeof (buf), "*.%s;", exts[e]);
-                    strcat (extlist, buf);
-                }
-            }
-        }
-    }
 
     GtkFileFilter* flt;
 
     flt = gtk_file_filter_new ();
     gtk_file_filter_set_name (flt, name);
-    gtk_file_filter_add_pattern (flt, extlist);
+
+
+    // Build extension list
+    DB_decoder_t **codecs = deadbeef->plug_get_decoder_list ();
+    for (int i = 0; codecs[i]; i++) {
+        if (codecs[i]->exts && codecs[i]->insert) {
+            const char **exts = codecs[i]->exts;
+            for (int e = 0; exts[e]; e++) {
+                char buf[100];
+                snprintf (buf, sizeof (buf), "*.%s", exts[e]);
+                printf ("Adding %s\n",buf);
+                gtk_file_filter_add_pattern (flt, buf);
+            }
+        }
+    }
+
+    //gtk_file_filter_add_pattern (flt, extlist);
     gtk_file_chooser_add_filter (GTK_FILE_CHOOSER (dlg), flt);
     gtk_file_chooser_set_filter (GTK_FILE_CHOOSER (dlg), flt);
 
@@ -349,7 +351,7 @@ set_file_filter (GtkFileChooser *dlg, const char *name) {
     return flt;
 }
 
-#else
+#else*/
 
 static gboolean
 file_filter_func (const GtkFileFilterInfo *filter_info, gpointer data) {
@@ -425,7 +427,7 @@ set_file_filter (GtkFileChooser *dlg, const char *name) {
     gtk_file_chooser_add_filter (GTK_FILE_CHOOSER (dlg), flt);
     return flt;
 }
-#endif //USE_GTK_NATIVE_FILE_CHOOSER
+//#endif //USE_GTK_NATIVE_FILE_CHOOSER
 
 #ifdef USE_GTK_NATIVE_FILE_CHOOSER
 
@@ -652,6 +654,8 @@ show_file_chooser (const gchar          *title,
 
     // store folder
     gchar *folder = gtk_file_chooser_get_current_folder_uri (GTK_FILE_CHOOSER (dlg));
+
+    printf ("fileman.c ilechooser.lastdir %s\n", folder);
     if (folder) {
         deadbeef->conf_set_str (conf_lastdir, folder);
         g_free (folder);
