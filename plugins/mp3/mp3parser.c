@@ -36,8 +36,8 @@ extern DB_functions_t *deadbeef;
 #define MIN_SAMPLERATE 8000
 #define MAX_SAMPLERATE 48000
 #define MIN_PACKET_LENGTH (MIN_PACKET_SAMPLES / 8 * MIN_BITRATE*1000 / MAX_SAMPLERATE)
-#define MAX_PACKET_LENGTH (MAX_PACKET_SAMPLES / 8 * MAX_BITRATE*1000 / MIN_SAMPLERATE)
-#define MAX_INVALID_BYTES 10000
+#define MAX_PACKET_LENGTH 1441
+#define MAX_INVALID_BYTES 1000000
 
 static const int vertbl[] = {3, -1, 2, 1}; // 3 is 2.5
 static const int ltbl[] = { -1, 3, 2, 1 };
@@ -187,6 +187,9 @@ _parse_packet (mp3packet_t * restrict packet, uint8_t * restrict fb) {
             return -1;
         }
         packet->packetlength = packet->samples_per_frame / 8 * packet->bitrate / packet->samplerate + padding;
+        if (packet->packetlength > MAX_PACKET_LENGTH) {
+            return -1;
+        }
     }
     else {
         return -1;
@@ -334,6 +337,7 @@ _process_packet (mp3info_t *info, mp3packet_t *packet, int64_t seek_to_sample) {
 
     info->avg_packetlength += packet->packetlength;
     info->avg_samples_per_frame += packet->samples_per_frame;
+    info->avg_bitrate += packet->bitrate;
 
     if (seek_to_sample == 0) {
         int ch = info->ref_packet.nchannels;
@@ -365,6 +369,8 @@ _packet_same_fmt (mp3packet_t *ref_packet, mp3packet_t *packet) {
 int
 mp3_parse_file (mp3info_t *info, uint32_t flags, DB_FILE *fp, int64_t fsize, int startoffs, int endoffs, int64_t seek_to_sample) {
     memset (info, 0, sizeof (mp3info_t));
+    info->fsize = fsize;
+    info->datasize = fsize-startoffs-endoffs;
 
     if (seek_to_sample > 0) {
         // add 9 extra packets to fill bit-reservoir
@@ -382,21 +388,6 @@ mp3_parse_file (mp3info_t *info, uint32_t flags, DB_FILE *fp, int64_t fsize, int
         fsize -= endoffs;
     }
 
-    int bufsize = 8192; // NOTE: buffer can't be smaller than the largest mp3 packet, which is 5760 bytes
-    assert (bufsize >= MAX_PACKET_LENGTH);
-    if (fsize > 0 && bufsize > fsize) {
-        bufsize = (int)fsize;
-    }
-
-    if (bufsize < MIN_PACKET_LENGTH) {
-        return -1; // file too small
-    }
-
-    uint8_t *buffer = malloc (bufsize);
-    if (!buffer) {
-        return -1;
-    }
-
     if (fsize < 0) {
         info->checked_xing_header = 1; // ignore Info tag in streams
     }
@@ -405,16 +396,18 @@ mp3_parse_file (mp3info_t *info, uint32_t flags, DB_FILE *fp, int64_t fsize, int
 
     mp3packet_t packet;
 
-    int remaining = 0;
     int64_t offs = startoffs;
     int64_t fileoffs = startoffs;
 
     int eof = 0;
 
+    int prev_br = -1;
+    int vbr = 0;
+
     while (fsize > 0 || fsize < 0) {
-        int64_t readsize = bufsize-remaining;
-        if (fsize > 0 && fileoffs + readsize >= fsize) {
-            readsize = fsize - fileoffs;
+        int64_t readsize = 4; // fe ff + frame header
+        if (fsize > 0 && offs + readsize >= fsize) {
+            readsize = fsize - offs;
             eof = 1;
         }
 
@@ -422,136 +415,172 @@ mp3_parse_file (mp3info_t *info, uint32_t flags, DB_FILE *fp, int64_t fsize, int
             break;
         }
 
-        assert (remaining >= 0);
-        assert (remaining <= bufsize);
-        assert (readsize <= bufsize-remaining);
-        if (deadbeef->fread (buffer+remaining, 1, readsize, fp) != readsize) {
+        uint8_t fhdr[4];
+
+        if (fileoffs != offs) {
+            deadbeef->fseek (fp, offs, SEEK_SET);
+            fileoffs = offs;
+        }
+        if (deadbeef->fread (fhdr, 1, readsize, fp) != readsize) {
             goto error;
         }
         fileoffs += readsize;
 
-        remaining = (int)(remaining + readsize);
+        int res = _parse_packet (&packet, fhdr);
+        if (res < 0 || (info->npackets && !_packet_same_fmt (&info->ref_packet, &packet))) {
+            // bail if a valid packet could not be found at the start of stream
+            if (!info->valid_packets && offs - startoffs > MAX_INVALID_BYTES) {
+                goto error;
+            }
 
-        uint8_t *bufptr = buffer;
+            // prevent misdetected garbage packets to be used as ref_packet
+            if (info->npackets == 1) {
+                info->npackets = 0;
+            }
 
-        while (remaining >= MAX_PACKET_LENGTH || (eof && remaining >= MIN_PACKET_LENGTH)) {
-            int res = _parse_packet (&packet, bufptr);
-            if (res < 0 || (info->npackets && !_packet_same_fmt (&info->ref_packet, &packet))) {
-                // bail if a valid packet could not be found at the start of stream
-                if (!info->valid_packets && offs - startoffs > MAX_INVALID_BYTES) {
+            // bad packet in the stream, try to resync
+            memset (&info->prev_packet, 0, sizeof (mp3packet_t));
+            info->packet_offs = -1;
+            info->lastpacket_valid = 0;
+            if (info->pcmsample == 0 && seek_to_sample != -1) {
+                info->valid_packets = 0;
+            }
+
+            offs++;
+            continue;
+        }
+        else {
+            // EOF
+            if (fsize >= 0 && offs + res > fsize) {
+                if (info->valid_packets) {
+                    goto end;
+                }
+                else {
+                    goto error;
+                }
+            }
+
+            packet.offs = offs;
+
+            if (!info->packet_offs || seek_to_sample >= 0) {
+                info->packet_offs = offs;
+            }
+
+            // try to read xing/info tag (only on initial scans)
+            int got_xing = 0;
+            if (!info->have_xing_header && !info->checked_xing_header)
+            {
+                // need whole packet for checking xing!
+
+                info->checked_xing_header = 1;
+                uint8_t xinghdr[packet.packetlength];
+                if (deadbeef->fread (xinghdr, 1, sizeof (xinghdr), fp) != sizeof (xinghdr)) {
+                    return -1;
+                }
+                fileoffs += sizeof (xinghdr);
+                int xingres = _check_xing_header (info, &packet, xinghdr, (int)sizeof (xinghdr));
+                if (!xingres) {
+                    got_xing = 1;
+                    info->have_xing_header = 1;
+                    // trust the xing header -- even if requested to scan for precise duration
+                    // parameters have been discovered from xing header, no need to continue
+                    memcpy (&info->ref_packet, &packet, sizeof (mp3packet_t));
+
+                    if (seek_to_sample > 0) {
+                        offs += res;
+                        continue;
+                    }
+                    else if (flags & MP3_PARSE_FULLSCAN) {
+                        // reset counters for full scan
+                        info->pcmsample = 0;
+                        info->delay = 0;
+                        info->padding = 0;
+                        memset (&info->ref_packet, 0, sizeof (mp3packet_t));
+                    }
+                }
+            }
+
+            if (!got_xing) {
+                // interrupt if the current packet contains the sample being seeked to
+                if (seek_to_sample > 0 && info->pcmsample+packet.samples_per_frame >= seek_to_sample) {
+                    goto end;
+                }
+
+                if (_process_packet (info, &packet, seek_to_sample) > 0) {
+                    goto end;
+                }
+                memcpy (&info->prev_packet, &packet, sizeof (packet));
+            }
+
+            if (prev_br != -1) {
+                if (prev_br!=packet.bitrate) {
+                    vbr = 1;
+                }
+            }
+            prev_br = packet.bitrate;
+
+            // Even if we already got everything we need from lame header,
+            // we still need to fetch a few packets to get averages right.
+            // 200 packets give a pretty accurate value, and correspond
+            // to less than 40KB or data
+            if (info->have_xing_header && !(flags & MP3_PARSE_FULLSCAN) && info->npackets >= 200) {
+                goto end;
+            }
+            // Calculate CBR duration from file size
+            else if (!vbr && !info->have_xing_header && !(flags & MP3_PARSE_FULLSCAN) && info->npackets >= 200) {
+                // calculate total number of packets from file size
+                int64_t npackets = ceil(fsize/(float)info->ref_packet.packetlength);
+                info->totalsamples = npackets * info->ref_packet.samples_per_frame;
+                info->have_duration = 1;
+                goto end;
+            }
+
+
+            // Handle infinite streams
+            if (fsize < 0 && info->npackets >= 20) {
+                goto end;
+            }
+
+            offs += res;
+
+            // for streaming tracks -- approximate duration
+            if (seek_to_sample == -1 && fsize > 0 && offs - startoffs > 50000 && (info->is_streaming || (flags&MP3_PARSE_ESTIMATE_DURATION))) {
+                if (!info->valid_packets) {
                     goto error;
                 }
 
-                // bad packet in the stream, try to resync
-                memset (&info->prev_packet, 0, sizeof (mp3packet_t));
-                info->packet_offs = -1;
-                info->lastpacket_valid = 0;
-                if (info->pcmsample == 0 && seek_to_sample != -1) {
-                    info->valid_packets = 0;
+                info->avg_packetlength = floor (info->avg_packetlength/info->valid_packets);
+                info->avg_samples_per_frame /= info->valid_packets;
+                info->npackets = (fsize - startoffs - endoffs) / info->avg_packetlength;
+                info->avg_bitrate /= info->valid_packets;
+                if (info->have_xing_header) {
+                    info->npackets--;
                 }
-
-                offs++;
-                remaining--;
-                bufptr++;
-                continue;
-            }
-            else {
-                // EOF
-                if (fsize >= 0 && offs + res > fsize) {
-                    if (info->valid_packets) {
-                        goto end;
-                    }
-                    else {
-                        goto error;
-                    }
-                }
-
-                packet.offs = offs;
-
-                if (!info->packet_offs || seek_to_sample >= 0) {
-                    info->packet_offs = offs;
-                }
-
-                // try to read xing/info tag (only on initial scans)
-                int got_xing = 0;
-                if (!info->have_xing_header && !info->checked_xing_header)
-                {
-                    // need whole packet for checking xing!
-
-                    info->checked_xing_header = 1;
-                    int xingres = _check_xing_header (info, &packet, bufptr+4, remaining-4);
-                    if (!xingres) {
-                        got_xing = 1;
-                        info->have_xing_header = 1;
-                        // trust the xing header -- even if requested to scan for precise duration
-                        // parameters have been discovered from xing header, no need to continue
-                        memcpy (&info->ref_packet, &packet, sizeof (mp3packet_t));
-
-                        if (seek_to_sample > 0) {
-                            assert (remaining >= res);
-                            remaining -= res;
-                            bufptr += res;
-                            offs += res;
-                            continue;
-                        }
-                        else if (!(flags & MP3_PARSE_FULLSCAN)) {
-                            goto end;
-                        }
-                        else {
-                            // reset counters for full scan
-                            info->pcmsample = 0;
-                            info->delay = 0;
-                            info->padding = 0;
-                            memset (&info->ref_packet, 0, sizeof (mp3packet_t));
-                        }
-                    }
-                }
-
-                if (!got_xing) {
-                    // interrupt if the current packet contains the sample being seeked to
-                    if (seek_to_sample > 0 && info->pcmsample+packet.samples_per_frame >= seek_to_sample) {
-                        goto end;
-                    }
-
-                    if (_process_packet (info, &packet, seek_to_sample) > 0) {
-                        goto end;
-                    }
-                    memcpy (&info->prev_packet, &packet, sizeof (packet));
-                }
-
-                assert (remaining >= res);
-                remaining -= res;
-                bufptr += res;
-                offs += res;
-
-                // for streaming tracks -- approximate duration
-                if (seek_to_sample == -1 && fsize > 0 && offs - startoffs > 50000 && (info->is_streaming || (flags&MP3_PARSE_ESTIMATE_DURATION))) {
-                    if (!info->valid_packets) {
-                        goto error;
-                    }
-
-                    info->avg_packetlength = floor (info->avg_packetlength/info->valid_packets);
-                    info->avg_samples_per_frame /= info->valid_packets;
-                    info->npackets = (fsize - startoffs - endoffs) / info->avg_packetlength;
+                else {
                     info->totalsamples = info->npackets * info->avg_samples_per_frame;
-                    info->have_duration = 1;
-
-                    goto end;
                 }
-            }
-        }
+                info->have_duration = 1;
 
-        if (remaining > 0) {
-            memmove (buffer, bufptr, remaining);
+                goto end_noaverages;
+            }
         }
     }
 
 end:
 
-    if (!info->avg_packetlength && info->npackets > 0) {
+    if (info->npackets > 0) {
         info->avg_samples_per_frame /= info->npackets;
         info->avg_packetlength /= info->npackets;
+        info->avg_bitrate /= info->npackets;
+        if (offs < fsize-endoffs && info->avg_packetlength != 0) {
+            info->npackets = (fsize - startoffs - endoffs) / info->avg_packetlength;
+            if (info->have_xing_header) {
+                info->npackets--;
+            }
+        }
     }
+
+end_noaverages:
 
     if (fsize >= 0) {
         info->delay += 529;
@@ -568,10 +597,5 @@ end:
     }
     err = 0;
 error:
-    if (buffer) {
-        free (buffer);
-        buffer = NULL;
-    }
-
     return err;
 }

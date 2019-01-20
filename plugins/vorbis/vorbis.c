@@ -139,7 +139,8 @@ update_vorbis_comments (DB_playItem_t *it, OggVorbis_File *vorbis_file, const in
                 !replaygain_tag(it, DDB_REPLAYGAIN_ALBUMPEAK, tag, value) &&
                 !replaygain_tag(it, DDB_REPLAYGAIN_TRACKGAIN, tag, value) &&
                 !replaygain_tag(it, DDB_REPLAYGAIN_TRACKPEAK, tag, value)
-                && strcasecmp (tag, "METADATA_BLOCK_PICTURE")) {
+                && strcasecmp (tag, "METADATA_BLOCK_PICTURE")
+                && *value) {
                     deadbeef->pl_append_meta(it, oggedit_map_tag(tag, "tag2meta"), value);
             }
         }
@@ -730,7 +731,17 @@ tags_list(DB_playItem_t *it, OggVorbis_File *vorbis_file)
         if (deadbeef->pl_find_meta (it, ddb_internal_rg_keys[n])) {
             float value = deadbeef->pl_get_item_replaygain (it, n);
             char s[100];
-            snprintf (s, sizeof (s), "%f", value);
+            // https://wiki.hydrogenaud.io/index.php?title=ReplayGain_2.0_specification#Metadata_format
+            switch (n) {
+            case DDB_REPLAYGAIN_ALBUMGAIN:
+            case DDB_REPLAYGAIN_TRACKGAIN:
+                snprintf (s, sizeof (s), "%.2f dB", value);
+                break;
+            case DDB_REPLAYGAIN_ALBUMPEAK:
+            case DDB_REPLAYGAIN_TRACKPEAK:
+                snprintf (s, sizeof (s), "%.6f", value);
+                break;
+            }
             split_tag (tags, tag_rg_names[n], s, (int)strlen (s)+1);
         }
     }

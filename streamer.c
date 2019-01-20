@@ -1355,14 +1355,14 @@ _update_buffering_state () {
 }
 
 static void
-handle_track_change (playItem_t *track) {
+handle_track_change (playItem_t *from, playItem_t *track) {
     // next track started
-    if (playing_track) {
-        send_songfinished (playing_track);
+    if (from) {
+        send_songfinished (from);
         playpos = 0;
     }
 
-    streamer_start_playback (playing_track, track);
+    streamer_start_playback (from, track);
 
     // only reset playpos/bitrate if track changing to another,
     // otherwise the track is the first one, and playpos is pre-set
@@ -1456,12 +1456,7 @@ streamer_thread (void *unused) {
                 play_next (-1);
                 break;
             case STR_EV_RAND:
-                {
-                    playItem_t *next = get_random_track();
-                    streamer_reset(1);
-                    handle_track_change (next);
-                    stream_track(next, 0);
-                }
+                play_next (0);
                 break;
             case STR_EV_SEEK:
                 streamer_seek_real(*((float *)&p1));
@@ -1708,7 +1703,7 @@ process_output_block (streamblock_t *block, char *bytes) {
         update_stop_after_current ();
     }
     if (block->first) {
-        handle_track_change (block->track);
+        handle_track_change (playing_track, block->track);
     }
 
     // A block with 0 size is a valid block, and needs to be processed as usual (code above this line).
@@ -2158,9 +2153,21 @@ _play_track (playItem_t *it, int startpaused) {
     output->stop ();
     streamer_reset(1);
     streamer_is_buffering = 1;
+
+    playItem_t *prev = playing_track;
+    if (prev) {
+        pl_item_ref (prev);
+    }
+
     streamer_set_playing_track(NULL);
     streamer_set_buffering_track (it);
-    handle_track_change (it);
+    handle_track_change (prev, it);
+
+    if (prev) {
+        pl_item_unref (prev);
+        prev = NULL;
+    }
+
     if (!stream_track(it, startpaused)) {
         playpos = 0;
         playtime = 0;
@@ -2287,7 +2294,38 @@ play_next (int dir) {
         origin = last_played;
     }
 
-    playItem_t *next = dir > 0 ? get_next_track(origin) : get_prev_track(origin);
+    playItem_t *next = NULL;
+    if (dir > 0) {
+        next = get_next_track (origin);
+    }
+    else if (dir < 0) {
+        next = get_prev_track (origin);
+    }
+    else {
+        next = get_random_track ();
+    }
+
+    // possibly need a reshuffle
+    if (!next && streamer_playlist->count[PL_MAIN] != 0) {
+        int pl_loop_mode = conf_get_int ("playback.loop", 0);
+
+        if (pl_loop_mode == PLAYBACK_MODE_NOLOOP) {
+            plt_reshuffle (streamer_playlist, dir > 0 ? &next : NULL, dir < 0 ? &next : NULL);
+            if (next && dir < 0) {
+                // mark all songs as played except the current one
+                playItem_t *it = streamer_playlist->head[PL_MAIN];
+                while (it) {
+                    if (it != next) {
+                        it->played = 1;
+                    }
+                    it = it->next[PL_MAIN];
+                }
+            }
+            if (next) {
+                pl_item_ref (next);
+            }
+        }
+    }
 
     if (!next) {
         output->stop ();

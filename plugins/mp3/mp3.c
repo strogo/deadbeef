@@ -121,8 +121,8 @@ cmp3_set_extra_properties (DB_playItem_t *it, mp3info_t *mp3info, int fake) {
     else {
         deadbeef->pl_replace_meta (it, ":FILE_SIZE", "∞");
     }
-    if (mp3info->ref_packet.bitrate > 0) {
-        snprintf (s, sizeof (s), "%d", mp3info->ref_packet.bitrate/1000);
+    if (mp3info->avg_bitrate > 0) {
+        snprintf (s, sizeof (s), "%d", (int)(mp3info->avg_bitrate/1000));
         deadbeef->pl_replace_meta (it, ":BITRATE", s);
     }
     snprintf (s, sizeof (s), "%d", mp3info->ref_packet.nchannels);
@@ -237,6 +237,7 @@ cmp3_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
     if (!info->file) {
         return -1;
     }
+    deadbeef->fset_track (info->file, it);
     info->info.file = info->file;
     deadbeef->pl_item_ref (it);
     info->it = it;
@@ -273,7 +274,6 @@ cmp3_init (DB_fileinfo_t *_info, DB_playItem_t *it) {
     }
     else {
         info->startoffs = (uint32_t)deadbeef->junk_get_leading_size(info->file);
-        deadbeef->fset_track (info->file, it);
         deadbeef->pl_add_meta (it, "title", NULL);
         int res = mp3_parse_file(&info->mp3info, info->mp3flags, info->file, deadbeef->fgetlength(info->file), info->startoffs, 0, -1);
         if (res < 0) {
